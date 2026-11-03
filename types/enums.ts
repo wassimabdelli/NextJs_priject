@@ -137,3 +137,99 @@ export const paymentMethodLabel: Record<PaymentMethod, string> = {
   CHEQUE: "Chèque",
   CARD: "Carte",
 };
+
+/* ---------- Ressources de la résidence (personnel, équipements, stock) ---------- */
+
+export const EmployeePosition = {
+  GUARD: "GUARD",
+  CONCIERGE: "CONCIERGE",
+  CLEANER: "CLEANER",
+  GARDENER: "GARDENER",
+  SECURITY_AGENT: "SECURITY_AGENT",
+  TECHNICIAN: "TECHNICIAN",
+  OTHER: "OTHER",
+} as const;
+export type EmployeePosition = (typeof EmployeePosition)[keyof typeof EmployeePosition];
+
+export const ContractType = {
+  PERMANENT: "PERMANENT",
+  FIXED_TERM: "FIXED_TERM",
+  CONTRACTOR: "CONTRACTOR",
+  INTERN: "INTERN",
+} as const;
+export type ContractType = (typeof ContractType)[keyof typeof ContractType];
+
+export const ShiftStatus = {
+  PLANNED: "PLANNED",
+  DONE: "DONE",
+  MISSED: "MISSED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type ShiftStatus = (typeof ShiftStatus)[keyof typeof ShiftStatus];
+
+export const LeaveType = {
+  ANNUAL: "ANNUAL",
+  SICK: "SICK",
+  UNPAID: "UNPAID",
+  OTHER: "OTHER",
+} as const;
+export type LeaveType = (typeof LeaveType)[keyof typeof LeaveType];
+
+export const LeaveStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+export type LeaveStatus = (typeof LeaveStatus)[keyof typeof LeaveStatus];
+
+export const EquipmentCategory = {
+  ELEVATOR: "ELEVATOR",
+  PUMP: "PUMP",
+  GENERATOR: "GENERATOR",
+  ELECTRICAL: "ELECTRICAL",
+  PLUMBING: "PLUMBING",
+  FIRE_SAFETY: "FIRE_SAFETY",
+  ACCESS_CONTROL: "ACCESS_CONTROL",
+  CAMERA: "CAMERA",
+  GARDEN: "GARDEN",
+  OTHER: "OTHER",
+} as const;
+export type EquipmentCategory = (typeof EquipmentCategory)[keyof typeof EquipmentCategory];
+
+export const EquipmentStatus = {
+  OPERATIONAL: "OPERATIONAL",
+  BROKEN: "BROKEN",
+  UNDER_MAINTENANCE: "UNDER_MAINTENANCE",
+  OUT_OF_SERVICE: "OUT_OF_SERVICE",
+} as const;
+export type EquipmentStatus = (typeof EquipmentStatus)[keyof typeof EquipmentStatus];
+
+export const MaintenanceType = {
+  PREVENTIVE: "PREVENTIVE",
+  CORRECTIVE: "CORRECTIVE",
+} as const;
+export type MaintenanceType = (typeof MaintenanceType)[keyof typeof MaintenanceType];
+
+export const MaintenanceStatus = {
+  PLANNED: "PLANNED",
+  IN_PROGRESS: "IN_PROGRESS",
+  DONE: "DONE",
+  CANCELLED: "CANCELLED",
+} as const;
+export type MaintenanceStatus = (typeof MaintenanceStatus)[keyof typeof MaintenanceStatus];
+
+export const StockUnit = {
+  PIECE: "PIECE",
+  LITER: "LITER",
+  KG: "KG",
+  BOX: "BOX",
+  PACK: "PACK",
+} as const;
+export type StockUnit = (typeof StockUnit)[keyof typeof StockUnit];
+
+export const StockMovementType = {
+  IN: "IN",
+  OUT: "OUT",
+} as const;
+export type StockMovementType = (typeof StockMovementType)[keyof typeof StockMovementType];
+

@@ -8,6 +8,8 @@ import { Payment } from "@/models/Payment";
 import { Expense } from "@/models/Expense";
 import { Incident } from "@/models/Incident";
 import { Announcement } from "@/models/Announcement";
+import { StockItem } from "@/models/StockItem";
+import { LeaveRequest } from "@/models/LeaveRequest";
 
 /**
  * GET /api/dashboard
@@ -73,6 +75,18 @@ export const GET = withAuth(
       };
       if (residenceIds.length > 0) incFilter.residence = { $in: residenceIds };
       const openIncidents = await Incident.countDocuments(incFilter);
+
+      // Alertes Stock bas et Congés en attente
+      const [lowStockCount, pendingLeavesCount] = await Promise.all([
+        StockItem.countDocuments({
+          ...residenceFilter,
+          $expr: { $lte: ["$quantity", "$minThreshold"] },
+        }),
+        LeaveRequest.countDocuments({
+          ...residenceFilter,
+          status: "PENDING",
+        }),
+      ]);
 
       // Impayés globaux
       const unpaidCharges = await Charge.find({
@@ -152,6 +166,8 @@ export const GET = withAuth(
           openIncidents,
           unpaidAmount,
           totalApartments: aptIds.length,
+          lowStockCount,
+          pendingLeavesCount,
         },
         charts: {
           financialByMonth,

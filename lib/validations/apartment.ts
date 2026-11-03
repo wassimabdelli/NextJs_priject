@@ -11,7 +11,10 @@ export const apartmentCreateSchema = z.object({
   owner: objectId.optional(),
 });
 
-export const apartmentUpdateSchema = apartmentCreateSchema.omit({ residence: true }).partial();
+export const apartmentUpdateSchema = apartmentCreateSchema
+  .omit({ residence: true })
+  .partial()
+  .extend({ isOccupied: z.boolean().optional() });
 
 export type ApartmentCreateInput = z.infer<typeof apartmentCreateSchema>;
 export type ApartmentUpdateInput = z.infer<typeof apartmentUpdateSchema>;

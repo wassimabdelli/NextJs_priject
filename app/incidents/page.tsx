@@ -24,6 +24,7 @@ import { Select } from "@/components/ui/Select";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AiDiagnosticButton } from "@/components/ai/AiDiagnosticButton";
 import { fetchWithOffline } from "@/lib/offline/apiClient";
 import type { IncidentDTO, ResidenceDTO } from "@/types/api";
 import { IncidentCategory, Priority, IncidentStatus, Role } from "@/types/enums";
@@ -949,6 +950,18 @@ function IncidentsContent() {
                 )}
               </div>
             </div>
+
+            <AiDiagnosticButton
+              photos={photos}
+              onResult={(ai) => {
+                setTitle(ai.title);
+                setDescription(
+                  ai.description + "\n\nActions reco: " + ai.checklist.join(", ")
+                );
+                setCategory(ai.category);
+                setPriority(ai.priority);
+              }}
+            />
 
             <div className="pt-2">
               <Button

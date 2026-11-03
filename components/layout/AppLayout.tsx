@@ -10,7 +10,9 @@ import {
   Megaphone,
   MoreHorizontal,
   Building2,
+  Wifi,
   WifiOff,
+  Cloud,
 } from "lucide-react";
 import clsx from "clsx";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -45,7 +47,7 @@ export interface AppLayoutProps {
 
 export function AppLayout({ children, user: serverUser }: AppLayoutProps) {
   const pathname = usePathname();
-  const { isOnline, pendingCount } = useOnlineStatus();
+  const { isOnline, pendingCount, isSyncing } = useOnlineStatus();
   const [mounted, setMounted] = React.useState(false);
   const [currentUser, setCurrentUser] = React.useState(serverUser);
 
@@ -203,15 +205,31 @@ export function AppLayout({ children, user: serverUser }: AppLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {showOffline && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                <WifiOff className="h-3 w-3" />
-                Hors ligne
+            {/* Indicateur global de connectivité et synchronisation PWA */}
+            {showOffline ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400"
+                title="Mode hors ligne actif"
+              >
+                <WifiOff className="h-3.5 w-3.5" />
+                <span>Hors ligne</span>
               </span>
-            )}
-            {pendingCount > 0 && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[10px] font-bold text-white">
-                {pendingCount}
+            ) : pendingCount > 0 ? (
+              <span
+                className="inline-flex animate-pulse items-center gap-1.5 rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-600 dark:text-sky-400"
+                title="Synchronisation des modifications locales"
+              >
+                <Cloud className="h-3.5 w-3.5" />
+                <span>
+                  {isSyncing ? "Synchronisation..." : `${pendingCount} en attente`}
+                </span>
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+                title="Connecté et synchronisé"
+              >
+                <Wifi className="h-3.5 w-3.5" />
               </span>
             )}
             <UserMenu initialUser={currentUser} compact />

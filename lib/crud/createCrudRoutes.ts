@@ -24,6 +24,7 @@ export interface CrudRouteConfig<T = any> {
     req: NextRequest
   ) => Record<string, any> | Promise<Record<string, any>>;
   beforeCreate?: (user: AuthUser, body: any, req: NextRequest) => Promise<void> | void;
+  beforeUpdate?: (id: string, body: any, user: AuthUser, req: NextRequest) => Promise<void> | void;
   beforeDelete?: (id: string, user: AuthUser, req: NextRequest) => Promise<void> | void;
   afterCreate?: (doc: any, user: AuthUser, req: NextRequest) => Promise<void> | void;
   afterUpdate?: (doc: any, user: AuthUser, req: NextRequest) => Promise<void> | void;
@@ -372,6 +373,9 @@ export function createCrudRoutes<T = any>(config: CrudRouteConfig<T>) {
       }
 
       const parsedBody = await parseBody(req, config.updateSchema);
+      if (config.beforeUpdate) {
+        await config.beforeUpdate(id, parsedBody, user, req);
+      }
 
       const filterConditions: MongoFilter<T>[] = [{ _id: id } as MongoFilter<T>];
 

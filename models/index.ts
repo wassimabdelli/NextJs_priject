@@ -12,3 +12,13 @@ export * from "./Meeting";
 export * from "./Resolution";
 export * from "./Vote";
 export * from "./Document";
+
+// Ressources de la résidence
+export * from "./Employee";
+export * from "./Shift";
+export * from "./LeaveRequest";
+export * from "./Equipment";
+export * from "./MaintenanceTask";
+export * from "./StockItem";
+export * from "./StockMovement";
+

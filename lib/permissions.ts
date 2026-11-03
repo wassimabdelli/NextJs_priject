@@ -28,6 +28,12 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   "/meetings": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
   "/resolutions": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
   "/documents": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+  "/equipment": [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN],
+  "/maintenance": [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN],
+  "/stock": [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN],
+  "/employees": [Role.ADMIN, Role.SYNDIC],
+  "/shifts": [Role.ADMIN, Role.SYNDIC],
+  "/leaves": [Role.ADMIN, Role.SYNDIC],
   "/api-docs": [Role.ADMIN, Role.SYNDIC],
   "/api/openapi": [Role.ADMIN, Role.SYNDIC],
 };
@@ -49,7 +55,13 @@ export type Resource =
   | "meeting"
   | "resolution"
   | "document"
-  | "vote";
+  | "vote"
+  | "equipment"
+  | "maintenance"
+  | "stock"
+  | "employee"
+  | "shift"
+  | "leave";
 
 
 /**
@@ -64,6 +76,9 @@ export function can(role: Role, action: Action, resource: Resource): boolean {
     case "apartment":
     case "resident":
     case "expense":
+    case "employee":
+    case "shift":
+    case "leave":
       // Le SYNDIC a tous les droits sur les résidences qu'il gère
       return role === Role.SYNDIC;
 
@@ -113,6 +128,21 @@ export function can(role: Role, action: Action, resource: Resource): boolean {
       if (role === Role.SYNDIC) return true;
       if (role === Role.RESIDENT) {
         return action === "read";
+      }
+      return false;
+
+    case "equipment":
+    case "stock":
+      if (role === Role.SYNDIC) return true;
+      if (role === Role.TECHNICIAN) {
+        return action === "read";
+      }
+      return false;
+
+    case "maintenance":
+      if (role === Role.SYNDIC) return true;
+      if (role === Role.TECHNICIAN) {
+        return action === "read" || action === "update";
       }
       return false;
 

@@ -1,4 +1,11 @@
-import { Role } from "@/types/enums";
+import {
+  Role,
+  ContractType,
+  EmployeePosition,
+  LeaveStatus,
+  LeaveType,
+  ShiftStatus,
+} from "@/types/enums";
 import type { ResourceConfig } from "./types";
 import type {
   AnnouncementDTO,
@@ -1572,5 +1579,793 @@ export const resourcesRegistry = {
   documents: documentConfig,
   users: userConfig,
 };
+
+/* ============================================================ */
+/* ÉQUIPEMENTS                                                  */
+/* ============================================================ */
+const EQUIPMENT_CATEGORIES = [
+  { label: "Ascenseur", value: "ELEVATOR" },
+  { label: "Pompe", value: "PUMP" },
+  { label: "Groupe électrogène", value: "GENERATOR" },
+  { label: "Électricité", value: "ELECTRICAL" },
+  { label: "Plomberie", value: "PLUMBING" },
+  { label: "Sécurité incendie", value: "FIRE_SAFETY" },
+  { label: "Contrôle d'accès", value: "ACCESS_CONTROL" },
+  { label: "Caméra", value: "CAMERA" },
+  { label: "Espaces verts", value: "GARDEN" },
+  { label: "Autre", value: "OTHER" },
+];
+
+const EQUIPMENT_STATUSES = [
+  { label: "Opérationnel", value: "OPERATIONAL" },
+  { label: "En panne", value: "BROKEN" },
+  { label: "En maintenance", value: "UNDER_MAINTENANCE" },
+  { label: "Hors service", value: "OUT_OF_SERVICE" },
+];
+
+const equipmentCategoryLabel = (v: string) =>
+  EQUIPMENT_CATEGORIES.find((c) => c.value === v)?.label ?? v;
+
+const daysUntil = (d?: string | Date | null) =>
+  d ? Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) : null;
+
+export const equipmentConfig: ResourceConfig<any> = {
+  key: "equipment",
+  label: "Équipement",
+  plural: "Équipements",
+  apiPath: "/api/equipment",
+  searchPlaceholder: "Rechercher un équipement, un emplacement, un n° de série...",
+  defaultSort: "name",
+  fields: [
+    {
+      name: "residence",
+      label: "Résidence",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "residences",
+        apiPath: "/api/residences",
+        labelField: "name",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "name",
+      label: "Nom de l'équipement",
+      type: "text",
+      required: true,
+      placeholder: "Ex : Ascenseur bâtiment A",
+    },
+    {
+      name: "category",
+      label: "Catégorie",
+      type: "select",
+      required: true,
+      options: EQUIPMENT_CATEGORIES,
+      defaultValue: "ELEVATOR",
+    },
+    {
+      name: "location",
+      label: "Emplacement",
+      type: "text",
+      placeholder: "Ex : Hall, sous-sol, toit",
+    },
+    {
+      name: "serialNumber",
+      label: "N° de série",
+      type: "text",
+    },
+    {
+      name: "purchaseDate",
+      label: "Date d'achat",
+      type: "date",
+    },
+    {
+      name: "warrantyEndDate",
+      label: "Fin de garantie",
+      type: "date",
+    },
+    {
+      name: "status",
+      label: "État",
+      type: "select",
+      options: EQUIPMENT_STATUSES,
+      defaultValue: "OPERATIONAL",
+      helpText: "Passe automatiquement en panne quand une intervention corrective est ouverte",
+    },
+    {
+      name: "maintenanceIntervalDays",
+      label: "Fréquence d'entretien (jours)",
+      type: "number",
+      min: 0,
+      defaultValue: 0,
+      helpText: "0 = pas d'entretien périodique",
+    },
+    {
+      name: "lastMaintenanceDate",
+      label: "Dernier entretien",
+      type: "date",
+    },
+    {
+      name: "provider",
+      label: "Prestataire / fournisseur",
+      type: "text",
+    },
+    {
+      name: "notes",
+      label: "Notes",
+      type: "textarea",
+    },
+  ],
+  listColumns: [
+    { key: "name", label: "Équipement" },
+    { key: "category", label: "Catégorie", render: (v) => equipmentCategoryLabel(v) },
+    { key: "residence", label: "Résidence", type: "relation" },
+    { key: "status", label: "État", type: "badge" },
+    {
+      key: "nextMaintenanceDate",
+      label: "Prochain entretien",
+      render: (v) => {
+        if (!v) return "—";
+        const formatted = new Date(v).toLocaleDateString("fr-FR");
+        const days = daysUntil(v);
+        if (days !== null && days < 0) {
+          return <span className="text-rose-600">{formatted} (en retard)</span>;
+        }
+        return formatted;
+      },
+    },
+    {
+      key: "warrantyEndDate",
+      label: "Garantie",
+      render: (v) => {
+        if (!v) return "—";
+        const formatted = new Date(v).toLocaleDateString("fr-FR");
+        const days = daysUntil(v);
+        if (days !== null && days < 0) {
+          return <span className="text-rose-600">{formatted} (expirée)</span>;
+        }
+        if (days !== null && days >= 0 && days <= 30) {
+          return <span className="text-amber-600">{formatted} (bientôt)</span>;
+        }
+        return formatted;
+      },
+    },
+  ],
+  cardTitle: (item) => item.name || "Équipement",
+  cardSubtitle: (item) =>
+    `${equipmentCategoryLabel(item.category)} • ${item.location || "Emplacement non précisé"}`,
+  badgeField: {
+    name: "status",
+    variantMap: {
+      OPERATIONAL: { label: "Opérationnel", color: "success" },
+      BROKEN: { label: "En panne", color: "danger" },
+      UNDER_MAINTENANCE: { label: "En maintenance", color: "warning" },
+      OUT_OF_SERVICE: { label: "Hors service", color: "default" },
+    },
+  },
+  canCreate: (role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canEdit: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canDelete: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  filterDefs: [
+    { key: "category", label: "Catégorie", type: "select", options: EQUIPMENT_CATEGORIES },
+    { key: "status", label: "État", type: "select", options: EQUIPMENT_STATUSES },
+  ],
+  sortOptions: [
+    { value: "name:asc", label: "Nom (A → Z)" },
+    { value: "nextMaintenanceDate:asc", label: "Entretien le plus proche" },
+    { value: "warrantyEndDate:asc", label: "Fin de garantie la plus proche" },
+  ],
+};
+
+/* ============================================================ */
+/* STOCK & CONSOMMABLES                                         */
+/* ============================================================ */
+const STOCK_CATEGORIES = [
+  { label: "Électricité & Éclairage", value: "ELECTRICAL" },
+  { label: "Plomberie & Sanitaire", value: "PLUMBING" },
+  { label: "Entretien & Nettoyage", value: "CLEANING" },
+  { label: "Quincaillerie & Outillage", value: "HARDWARE" },
+  { label: "Sécurité & Accès", value: "SECURITY" },
+  { label: "Espaces verts", value: "GARDEN" },
+  { label: "Autre", value: "OTHER" },
+];
+
+const stockCategoryLabel = (v: string) =>
+  STOCK_CATEGORIES.find((c) => c.value === v)?.label ?? v;
+
+export const stockConfig: ResourceConfig<any> = {
+  key: "stock",
+  label: "Article de stock",
+  plural: "Stock & Consommables",
+  apiPath: "/api/stock/items",
+  searchPlaceholder: "Rechercher un article ou consommable...",
+  defaultSort: "name:asc",
+  fields: [
+    {
+      name: "residence",
+      label: "Résidence",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "residences",
+        apiPath: "/api/residences",
+        labelField: "name",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "name",
+      label: "Nom de l'article",
+      type: "text",
+      required: true,
+      placeholder: "Ex : Ampoule LED E27, Produit nettoyant sol",
+    },
+    {
+      name: "category",
+      label: "Catégorie",
+      type: "select",
+      required: true,
+      options: STOCK_CATEGORIES,
+      defaultValue: "ELECTRICAL",
+    },
+    {
+      name: "quantity",
+      label: "Quantité en stock",
+      type: "number",
+      required: true,
+      min: 0,
+      defaultValue: 0,
+    },
+    {
+      name: "minQuantity",
+      label: "Seuil d'alerte (stock minimum)",
+      type: "number",
+      min: 0,
+      defaultValue: 5,
+      helpText: "Affiche une alerte « Stock bas » lorsque la quantité est inférieure ou égale à ce seuil",
+    },
+    {
+      name: "unit",
+      label: "Unité",
+      type: "text",
+      defaultValue: "unité",
+      placeholder: "Ex : unité, boîte, litre, rouleau",
+    },
+    {
+      name: "notes",
+      label: "Notes / Emplacement",
+      type: "textarea",
+      placeholder: "Ex : Local technique sous-sol B, étagère 2",
+    },
+  ],
+  listColumns: [
+    { key: "name", label: "Article" },
+    {
+      key: "category",
+      label: "Catégorie",
+      render: (v: string) => stockCategoryLabel(v),
+    },
+    { key: "residence", label: "Résidence", type: "relation" },
+    {
+      key: "quantity",
+      label: "Quantité",
+      render: (val: number, item: any) => {
+        const qty = val ?? 0;
+        const minQty = item?.minQuantity ?? 0;
+        const isLow = qty <= minQty;
+        return (
+          <div className="flex items-center gap-2">
+            <span
+              className={`font-bold ${
+                isLow
+                  ? "text-rose-600 dark:text-rose-400"
+                  : "text-slate-900 dark:text-white"
+              }`}
+            >
+              {qty} {item?.unit || ""}
+            </span>
+            {isLow && (
+              <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
+                Stock bas
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    { key: "minQuantity", label: "Seuil min.", type: "number" },
+    { key: "unit", label: "Unité" },
+  ],
+  cardTitle: (item) => item.name || "Article",
+  cardSubtitle: (item) =>
+    `${stockCategoryLabel(item.category)} • Stock : ${item.quantity ?? 0} ${
+      item.unit || "unité"
+    } (seuil : ${item.minQuantity ?? 0})`,
+  canCreate: (role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canEdit: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canDelete: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  filterDefs: [
+    { key: "category", label: "Catégorie", type: "select", options: STOCK_CATEGORIES },
+    { key: "lowStock", label: "Stock bas uniquement", type: "boolean" },
+  ],
+  sortOptions: [
+    { value: "name:asc", label: "Nom (A → Z)" },
+    { value: "quantity:asc", label: "Quantité croissante" },
+    { value: "quantity:desc", label: "Quantité décroissante" },
+  ],
+};
+
+/* ============================================================ */
+/* PERSONNEL, PLANNINGS & CONGÉS (RH)                           */
+/* ============================================================ */
+const POSITION_LABELS: Record<string, string> = {
+  GUARD: "Gardien / Sécurité",
+  CONCIERGE: "Concierge / Gardien",
+  CLEANER: "Agent d'entretien",
+  CLEANING: "Agent d'entretien",
+  TECHNICIAN: "Technicien",
+  MAINTENANCE: "Agent de maintenance",
+  GARDENER: "Jardinier / Espaces verts",
+  MANAGER: "Régisseur / Responsable",
+  SECURITY: "Agent de sécurité",
+  OTHER: "Autre",
+};
+
+const EMPLOYEE_POSITIONS = Object.values(EmployeePosition).map((val) => ({
+  value: String(val),
+  label: POSITION_LABELS[String(val)] ?? String(val),
+}));
+
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  CDI: "CDI (Contrat à durée indéterminée)",
+  CDD: "CDD (Contrat à durée déterminée)",
+  FREELANCE: "Prestataire / Indépendant",
+  INTERIM: "Intérim",
+  PART_TIME: "Temps partiel",
+  FULL_TIME: "Temps plein",
+  STAGE: "Stage / Apprentissage",
+  OTHER: "Autre",
+};
+
+const CONTRACT_TYPES = Object.values(ContractType).map((val) => ({
+  value: String(val),
+  label: CONTRACT_TYPE_LABELS[String(val)] ?? String(val),
+}));
+
+const SHIFT_STATUS_LABELS: Record<string, string> = {
+  PLANNED: "Planifié",
+  SCHEDULED: "Planifié",
+  CONFIRMED: "Confirmé",
+  IN_PROGRESS: "En cours",
+  COMPLETED: "Terminé",
+  DONE: "Effectué",
+  CANCELLED: "Annulé",
+  ABSENT: "Absent",
+};
+
+const SHIFT_STATUSES = Object.values(ShiftStatus).map((val) => ({
+  value: String(val),
+  label: SHIFT_STATUS_LABELS[String(val)] ?? String(val),
+}));
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  PAID: "Congés payés",
+  ANNUAL: "Congés annuels",
+  VACATION: "Congés payés",
+  SICK: "Congé maladie",
+  SICK_LEAVE: "Congé maladie",
+  UNPAID: "Congé sans solde",
+  EXCEPTIONAL: "Congé exceptionnel",
+  PARENTAL: "Congé parental",
+  RECOVERY: "Récupération / RTT",
+  OTHER: "Autre",
+};
+
+const LEAVE_TYPES = Object.values(LeaveType).map((val) => ({
+  value: String(val),
+  label: LEAVE_TYPE_LABELS[String(val)] ?? String(val),
+}));
+
+const LEAVE_STATUS_LABELS: Record<string, string> = {
+  PENDING: "En attente",
+  APPROVED: "Approuvé",
+  REJECTED: "Refusé",
+};
+
+const LEAVE_STATUSES = Object.values(LeaveStatus).map((val) => ({
+  value: String(val),
+  label: LEAVE_STATUS_LABELS[String(val)] ?? String(val),
+}));
+
+const employeeRoleLabel = (v: string) =>
+  POSITION_LABELS[v] ?? EMPLOYEE_POSITIONS.find((r) => r.value === v)?.label ?? v;
+
+const contractTypeLabel = (v: string) =>
+  CONTRACT_TYPE_LABELS[v] ?? CONTRACT_TYPES.find((c) => c.value === v)?.label ?? v;
+
+const leaveTypeLabel = (v: string) =>
+  LEAVE_TYPE_LABELS[v] ?? LEAVE_TYPES.find((t) => t.value === v)?.label ?? v;
+
+export const employeeConfig: ResourceConfig<any> = {
+  key: "employees",
+  label: "Employé",
+  plural: "Personnel",
+  apiPath: "/api/employees",
+  searchPlaceholder: "Rechercher un employé par nom, poste ou résidence...",
+  defaultSort: "-hireDate",
+  fields: [
+    {
+      name: "residence",
+      label: "Résidence d'affectation",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "residences",
+        apiPath: "/api/residences",
+        labelField: "name",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "fullName",
+      label: "Nom complet",
+      type: "text",
+      required: true,
+      placeholder: "Ex : Karim Benali",
+    },
+    {
+      name: "user",
+      label: "Compte utilisateur associé (facultatif)",
+      type: "relation",
+      relation: {
+        resource: "users",
+        apiPath: "/api/users",
+        labelField: "name",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "position",
+      label: "Poste / Fonction",
+      type: "select",
+      required: true,
+      options: EMPLOYEE_POSITIONS,
+      defaultValue: EMPLOYEE_POSITIONS[0]?.value,
+    },
+    {
+      name: "contractType",
+      label: "Type de contrat",
+      type: "select",
+      required: true,
+      options: CONTRACT_TYPES,
+      defaultValue: CONTRACT_TYPES[0]?.value,
+    },
+    {
+      name: "hireDate",
+      label: "Date d'embauche",
+      type: "date",
+      required: true,
+    },
+    {
+      name: "endDate",
+      label: "Date de fin de contrat (facultatif)",
+      type: "date",
+    },
+    {
+      name: "monthlySalary",
+      label: "Salaire mensuel brut (€)",
+      type: "number",
+      min: 0,
+      defaultValue: 0,
+    },
+    {
+      name: "phone",
+      label: "Téléphone",
+      type: "text",
+      placeholder: "Ex : 06 12 34 56 78",
+    },
+    {
+      name: "email",
+      label: "Email",
+      type: "text",
+      placeholder: "Ex : employe@syndicpro.fr",
+    },
+    {
+      name: "isActive",
+      label: "En poste actuellement",
+      type: "boolean",
+      defaultValue: true,
+    },
+    {
+      name: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "Informations complémentaires sur le poste ou les horaires...",
+    },
+  ],
+  listColumns: [
+    {
+      key: "fullName",
+      label: "Collaborateur",
+      render: (val: any, item: any) =>
+        val || item?.user?.name || item?.name || "Employé",
+    },
+    {
+      key: "position",
+      label: "Poste",
+      render: (v: string, item: any) => employeeRoleLabel(v || item?.role),
+    },
+    {
+      key: "contractType",
+      label: "Contrat",
+      render: (v: string) => (v ? contractTypeLabel(v) : "—"),
+    },
+    { key: "residence", label: "Résidence", type: "relation" },
+    { key: "hireDate", label: "Embauche", type: "date" },
+    {
+      key: "monthlySalary",
+      label: "Salaire",
+      render: (val: number, item: any) =>
+        `${(val ?? item?.salary ?? 0).toFixed(2)} €`,
+    },
+    { key: "isActive", label: "Actif", type: "boolean" },
+  ],
+  cardTitle: (item) =>
+    item.fullName ||
+    (typeof item.user === "object" && item.user?.name) ||
+    item.name ||
+    employeeRoleLabel(item.position || item.role),
+  cardSubtitle: (item) =>
+    `${employeeRoleLabel(item.position || item.role)} • ${contractTypeLabel(
+      item.contractType || ""
+    )} • ${(item.monthlySalary ?? item.salary ?? 0).toFixed(2)} €`,
+  canCreate: (role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canEdit: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canDelete: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  filterDefs: [
+    { key: "position", label: "Poste", type: "select", options: EMPLOYEE_POSITIONS },
+    { key: "isActive", label: "Actif", type: "boolean" },
+  ],
+};
+
+export const shiftConfig: ResourceConfig<any> = {
+  key: "shifts",
+  label: "Créneau de planning",
+  plural: "Plannings",
+  apiPath: "/api/shifts",
+  searchPlaceholder: "Rechercher dans les missions ou notes de planning...",
+  defaultSort: "-startAt",
+  fields: [
+    {
+      name: "residence",
+      label: "Résidence",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "residences",
+        apiPath: "/api/residences",
+        labelField: "name",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "employee",
+      label: "Employé",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "employees",
+        apiPath: "/api/employees",
+        labelField: "fullName",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "startAt",
+      label: "Début du service",
+      type: "date",
+      required: true,
+    },
+    {
+      name: "endAt",
+      label: "Fin du service",
+      type: "date",
+      required: true,
+    },
+    {
+      name: "mission",
+      label: "Mission / Objet du créneau",
+      type: "text",
+      placeholder: "Ex : Permanence accueil, Ronde de sécurité...",
+    },
+    {
+      name: "status",
+      label: "Statut",
+      type: "select",
+      options: SHIFT_STATUSES,
+      defaultValue: SHIFT_STATUSES[0]?.value,
+    },
+    {
+      name: "notes",
+      label: "Consignes / Notes",
+      type: "textarea",
+      placeholder: "Détails ou consignes particulières...",
+    },
+  ],
+  listColumns: [
+    {
+      key: "employee",
+      label: "Employé",
+      type: "relation",
+      render: (val: any) =>
+        val?.fullName ||
+        val?.name ||
+        (val?.position || val?.role
+          ? employeeRoleLabel(val.position || val.role)
+          : "—"),
+    },
+    { key: "residence", label: "Résidence", type: "relation" },
+    {
+      key: "startAt",
+      label: "Début",
+      type: "date",
+      render: (val: any, item: any) => {
+        const d = val || item?.startTime;
+        return d ? new Date(d).toLocaleDateString("fr-FR") : "—";
+      },
+    },
+    {
+      key: "endAt",
+      label: "Fin",
+      type: "date",
+      render: (val: any, item: any) => {
+        const d = val || item?.endTime;
+        return d ? new Date(d).toLocaleDateString("fr-FR") : "—";
+      },
+    },
+    {
+      key: "mission",
+      label: "Mission / Notes",
+      render: (val: any, item: any) => val || item?.notes || "—",
+    },
+  ],
+  cardTitle: (item) =>
+    (typeof item.employee === "object" &&
+      (item.employee?.fullName ||
+        item.employee?.name ||
+        employeeRoleLabel(item.employee?.position || item.employee?.role))) ||
+    item.mission ||
+    "Planning",
+  cardSubtitle: (item) => {
+    const start = item.startAt || item.startTime;
+    return `${
+      start ? new Date(start).toLocaleDateString("fr-FR") : ""
+    } • ${item.mission || item.notes || "Service planifié"}`;
+  },
+  canCreate: (role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canEdit: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canDelete: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+};
+
+export const leaveConfig: ResourceConfig<any> = {
+  key: "leaves",
+  label: "Demande de congé",
+  plural: "Congés & Absences",
+  apiPath: "/api/leaves",
+  searchPlaceholder: "Rechercher par motif de congé...",
+  defaultSort: "-startDate",
+  fields: [
+    {
+      name: "residence",
+      label: "Résidence",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "residences",
+        apiPath: "/api/residences",
+        labelField: "name",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "employee",
+      label: "Employé",
+      type: "relation",
+      required: true,
+      relation: {
+        resource: "employees",
+        apiPath: "/api/employees",
+        labelField: "fullName",
+        valueField: "_id",
+      },
+    },
+    {
+      name: "type",
+      label: "Type de congé",
+      type: "select",
+      required: true,
+      options: LEAVE_TYPES,
+      defaultValue: LEAVE_TYPES[0]?.value,
+    },
+    {
+      name: "startDate",
+      label: "Date de début",
+      type: "date",
+      required: true,
+    },
+    {
+      name: "endDate",
+      label: "Date de fin",
+      type: "date",
+      required: true,
+    },
+    {
+      name: "reason",
+      label: "Motif",
+      type: "textarea",
+      required: true,
+      placeholder: "Ex : Congés payés annuels, Arrêt maladie...",
+    },
+    {
+      name: "status",
+      label: "Décision",
+      type: "select",
+      options: LEAVE_STATUSES,
+      defaultValue: "PENDING",
+    },
+  ],
+  listColumns: [
+    {
+      key: "employee",
+      label: "Employé",
+      type: "relation",
+      render: (val: any) =>
+        val?.fullName ||
+        val?.name ||
+        (val?.position || val?.role
+          ? employeeRoleLabel(val.position || val.role)
+          : "—"),
+    },
+    { key: "residence", label: "Résidence", type: "relation" },
+    {
+      key: "type",
+      label: "Type",
+      render: (val: string) => (val ? leaveTypeLabel(val) : "—"),
+    },
+    { key: "startDate", label: "Du", type: "date" },
+    { key: "endDate", label: "Au", type: "date" },
+    { key: "status", label: "Statut", type: "badge" },
+    { key: "reason", label: "Motif" },
+  ],
+  cardTitle: (item) =>
+    (typeof item.employee === "object" &&
+      (item.employee?.fullName ||
+        item.employee?.name ||
+        employeeRoleLabel(item.employee?.position || item.employee?.role))) ||
+    "Demande de congé",
+  cardSubtitle: (item) =>
+    `${item.type ? `${leaveTypeLabel(item.type)} • ` : ""}Du ${
+      item.startDate ? new Date(item.startDate).toLocaleDateString("fr-FR") : "—"
+    } au ${
+      item.endDate ? new Date(item.endDate).toLocaleDateString("fr-FR") : "—"
+    } • ${item.reason || ""}`,
+  badgeField: {
+    name: "status",
+    variantMap: {
+      PENDING: { label: "En attente", color: "warning" },
+      APPROVED: { label: "Approuvé", color: "success" },
+      REJECTED: { label: "Refusé", color: "danger" },
+    },
+  },
+  canCreate: (role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canEdit: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  canDelete: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
+  filterDefs: [
+    { key: "status", label: "Statut", type: "select", options: LEAVE_STATUSES },
+    { key: "type", label: "Type", type: "select", options: LEAVE_TYPES },
+  ],
+};
+
 
 

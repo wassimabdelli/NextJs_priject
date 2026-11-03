@@ -168,6 +168,48 @@ export default function MorePage() {
               <span className="text-[11px] text-slate-500">Charges de la copropriété</span>
             </a>
             <a
+              href="/equipment"
+              className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Équipements</span>
+              <span className="text-[11px] text-slate-500">Parc, garanties & entretien</span>
+            </a>
+            <a
+              href="/maintenance"
+              className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Interventions</span>
+              <span className="text-[11px] text-slate-500">Maintenance préventive & pannes</span>
+            </a>
+            <a
+              href="/stock"
+              className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Stock & Consommables</span>
+              <span className="text-[11px] text-slate-500">Inventaire, mouvements & alertes</span>
+            </a>
+            <a
+              href="/employees"
+              className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Personnel</span>
+              <span className="text-[11px] text-slate-500">Gardiens, agents & contrats</span>
+            </a>
+            <a
+              href="/shifts"
+              className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Plannings</span>
+              <span className="text-[11px] text-slate-500">Créneaux horaires & gardes</span>
+            </a>
+            <a
+              href="/leaves"
+              className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <span className="font-bold text-sm text-slate-900 dark:text-white">Congés</span>
+              <span className="text-[11px] text-slate-500">Absences & validations RH</span>
+            </a>
+            <a
               href="/api-docs"
               className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60"
             >

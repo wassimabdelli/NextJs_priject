@@ -18,6 +18,7 @@ import {
   BarChart3,
   PieChart as PieIcon,
   Calendar,
+  Package,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -117,8 +118,8 @@ export default function DashboardPage() {
         {/* ======================================================== */}
         {(role === Role.ADMIN || role === Role.SYNDIC || (!role && !loading)) && (
           <div className="space-y-6">
-            {/* Grille des 4 KPI */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Grille des 6 KPI */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* KPI 1 : Taux de recouvrement du mois */}
               <Card className="border-sky-500/20 bg-gradient-to-br from-white to-sky-50/50 dark:from-slate-900 dark:to-slate-900/60">
                 <CardContent className="p-4 space-y-2">
@@ -214,6 +215,94 @@ export default function DashboardPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* KPI 5 : Alertes Stock */}
+              <Link href="/stock" className="block transition-transform hover:scale-[1.01]">
+                <Card
+                  className={
+                    (data?.kpi?.lowStockCount ?? 0) > 0
+                      ? "border-amber-500/40 bg-gradient-to-br from-white to-amber-50/70 dark:from-slate-900 dark:to-amber-950/30"
+                      : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60"
+                  }
+                >
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Alertes Stock
+                      </span>
+                      <Package
+                        className={`h-5 w-5 ${
+                          (data?.kpi?.lowStockCount ?? 0) > 0
+                            ? "text-amber-500"
+                            : "text-slate-400"
+                        }`}
+                      />
+                    </div>
+                    {loading ? (
+                      <Skeleton className="h-8 w-24" />
+                    ) : (
+                      <div>
+                        <div
+                          className={`text-2xl font-extrabold sm:text-3xl ${
+                            (data?.kpi?.lowStockCount ?? 0) > 0
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-slate-900 dark:text-white"
+                          }`}
+                        >
+                          {data?.kpi?.lowStockCount ?? 0}
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Articles sous le seuil minimal
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+
+              {/* KPI 6 : Congés en attente */}
+              <Link href="/leaves" className="block transition-transform hover:scale-[1.01]">
+                <Card
+                  className={
+                    (data?.kpi?.pendingLeavesCount ?? 0) > 0
+                      ? "border-indigo-500/40 bg-gradient-to-br from-white to-indigo-50/70 dark:from-slate-900 dark:to-indigo-950/30"
+                      : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60"
+                  }
+                >
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Congés en attente
+                      </span>
+                      <Calendar
+                        className={`h-5 w-5 ${
+                          (data?.kpi?.pendingLeavesCount ?? 0) > 0
+                            ? "text-indigo-500"
+                            : "text-slate-400"
+                        }`}
+                      />
+                    </div>
+                    {loading ? (
+                      <Skeleton className="h-8 w-24" />
+                    ) : (
+                      <div>
+                        <div
+                          className={`text-2xl font-extrabold sm:text-3xl ${
+                            (data?.kpi?.pendingLeavesCount ?? 0) > 0
+                              ? "text-indigo-600 dark:text-indigo-400"
+                              : "text-slate-900 dark:text-white"
+                          }`}
+                        >
+                          {data?.kpi?.pendingLeavesCount ?? 0}
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Demandes RH à valider
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
 
             {/* 2 Graphiques Recharts */}

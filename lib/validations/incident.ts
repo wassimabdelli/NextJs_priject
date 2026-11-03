@@ -34,7 +34,8 @@ export const incidentUpdateSchema = z
 /** PATCH /api/incidents/[id] : édition des champs descriptifs (ADMIN/SYNDIC), hors workflow. */
 export const incidentEditSchema = incidentCreateSchema
   .pick({ title: true, description: true, category: true, priority: true })
-  .partial();
+  .partial()
+  .extend({ priority: z.enum(Priority).optional() });
 
 /** PATCH /api/incidents/[id]/assign */
 export const incidentAssignSchema = z.object({ assignedTo: objectId });

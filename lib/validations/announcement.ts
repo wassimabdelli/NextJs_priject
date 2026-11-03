@@ -10,7 +10,10 @@ export const announcementCreateSchema = z.object({
   isPinned: z.boolean().default(false),
 });
 
-export const announcementUpdateSchema = announcementCreateSchema.omit({ residence: true }).partial();
+export const announcementUpdateSchema = announcementCreateSchema
+  .omit({ residence: true })
+  .partial()
+  .extend({ isPinned: z.boolean().optional() });
 
 export type AnnouncementCreateInput = z.infer<typeof announcementCreateSchema>;
 export type AnnouncementUpdateInput = z.infer<typeof announcementUpdateSchema>;

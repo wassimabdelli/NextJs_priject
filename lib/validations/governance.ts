@@ -11,7 +11,10 @@ export const meetingCreateSchema = z.object({
   agenda: z.string().optional(),
   status: z.enum(MeetingStatus).default(MeetingStatus.PLANNED),
 });
-export const meetingUpdateSchema = meetingCreateSchema.omit({ residence: true }).partial();
+export const meetingUpdateSchema = meetingCreateSchema
+  .omit({ residence: true })
+  .partial()
+  .extend({ status: z.enum(MeetingStatus).optional() });
 
 /* ---------- Resolution ---------- */
 export const resolutionCreateSchema = z.object({
@@ -20,7 +23,10 @@ export const resolutionCreateSchema = z.object({
   description: z.string().optional(),
   requiredMajority: z.number().min(0).max(100).default(50),
 });
-export const resolutionUpdateSchema = resolutionCreateSchema.omit({ meeting: true }).partial();
+export const resolutionUpdateSchema = resolutionCreateSchema
+  .omit({ meeting: true })
+  .partial()
+  .extend({ requiredMajority: z.number().min(0).max(100).optional() });
 
 /* ---------- Vote ---------- */
 /** weight n'est pas saisi : le serveur le déduit des tantièmes du lot. */

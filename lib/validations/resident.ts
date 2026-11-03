@@ -14,7 +14,9 @@ export const residentCreateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const residentUpdateSchema = residentCreateSchema.partial();
+export const residentUpdateSchema = residentCreateSchema
+  .partial()
+  .extend({ isActive: z.boolean().optional() });
 
 export type ResidentCreateInput = z.infer<typeof residentCreateSchema>;
 export type ResidentUpdateInput = z.infer<typeof residentUpdateSchema>;
