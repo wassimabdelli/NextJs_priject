@@ -3,7 +3,7 @@ import clsx from "clsx";
 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={clsx("sp-card", className)} {...props}>
+    <div className={clsx("glass-card rounded-3xl", className)} {...props}>
       {children}
     </div>
   );

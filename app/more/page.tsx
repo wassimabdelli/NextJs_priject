@@ -380,6 +380,27 @@ const MODULES_BY_ROLE: Record<
   ],
 };
 
+/** Couleurs d’icônes (redesign MoreHub) par route, repli bleu par défaut. */
+const MODULE_ICON_COLOR: Record<string, string> = {
+  "/profile": "text-indigo-500",
+  "/wallet": "text-pink-500",
+  "/notifications": "text-amber-500",
+  "/documents": "text-violet-500",
+  "/payments": "text-teal-500",
+  "/join": "text-sky-500",
+  "/elections": "text-emerald-500",
+  "/meetings": "text-purple-500",
+  "/resolutions": "text-indigo-500",
+  "/votes": "text-indigo-500",
+  "/join-requests": "text-rose-500",
+  "/users": "text-cyan-500",
+  "/residences": "text-blue-500",
+  "/apartments": "text-sky-500",
+  "/residents": "text-cyan-500",
+  "/expenses": "text-rose-500",
+  "/api-docs": "text-slate-500",
+};
+
 export default function MorePage() {
   const router = useRouter();
   const { isOnline, pendingCount, isSyncing, syncNow, refreshPendingCount } =
@@ -523,18 +544,16 @@ export default function MorePage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="sp-card overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-          <p className="text-pretty text-xs font-medium text-slate-500 dark:text-slate-400">
-            {isManagement ? "Pilotage copropriété" : "Espace résident"}
-          </p>
-          <h1 className="sp-title mt-1 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-            {isManagement ? "Gestion de la copropriété" : "Vos services"}
+      <div className="space-y-6 pb-12">
+        <div className="border-b border-slate-200/80 pb-5 dark:border-white/[0.08]">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+            Supervision & Centre Opérationnel
+          </span>
+          <h1 className="sp-title mt-0.5 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+            Gestion & Modules de Copropriété
           </h1>
-          <p className="sp-body mt-1.5 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
-            {isManagement
-              ? "Supervision des résidences, synchronisation hors ligne et administration"
-              : "Documents, démarches et informations personnelles"}
+          <p className="sp-body mt-1 max-w-2xl text-xs text-slate-500 dark:text-slate-400">
+            Supervision des résidences, synchronisation hors ligne et administration globale
           </p>
         </div>
 
@@ -547,7 +566,7 @@ export default function MorePage() {
 
         {/* Bannière Élections (ADMIN uniquement) */}
         {currentUser?.role === Role.ADMIN && (
-          <Card className="rounded-[1.5rem] border border-sky-200/80 dark:border-sky-900/60">
+          <Card className="border border-sky-200/80 dark:border-sky-900/60">
             <CardContent className="p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3.5">
@@ -693,47 +712,40 @@ export default function MorePage() {
         {/* GRILLE STRICTEMENT FILTRÉE SELON LE RÔLE                 */}
         {/* ======================================================== */}
         <div className="space-y-3">
-          <h2 className="text-pretty text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {isManagement ? "Raccourcis de gestion" : "Raccourcis"}
-          </h2>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Tous les modules disponibles
+          </p>
 
           {loadingUser && modules.length === 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-40 animate-pulse rounded-[1.5rem] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900"
+                  className="h-32 animate-pulse rounded-3xl bg-slate-200/50 dark:bg-slate-800/60"
                 />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {modules.map((mod) => {
                 const Icon = mod.icon;
+                const iconColor = MODULE_ICON_COLOR[mod.href] ?? "text-blue-500";
                 return (
                   <Link
                     key={mod.href}
                     href={mod.href}
-                    className={`group flex min-h-[10rem] flex-col justify-between rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm transition-colors duration-150 hover:border-sky-300/80 hover:bg-sky-500/[0.06] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-800 dark:hover:bg-sky-950/30 ${
-                      mod.highlight ? "ring-1 ring-sky-500/15 dark:ring-sky-500/20" : ""
+                    className={`glass-card group flex min-h-11 items-start gap-3.5 rounded-3xl p-4 text-left shadow-xs transition-all hover:scale-[1.02] ${
+                      mod.highlight ? "ring-1 ring-blue-500/20 dark:ring-blue-400/25" : ""
                     }`}
                   >
-                    <div
-                      className={`flex size-12 items-center justify-center rounded-2xl shadow-sm ${
-                        mod.highlight
-                          ? "bg-sky-500 text-white"
-                          : "bg-slate-100 text-slate-600 group-hover:bg-sky-500/10 group-hover:text-sky-600 dark:bg-slate-800 dark:text-slate-300"
-                      }`}
-                    >
-                      <Icon className="size-5" aria-hidden />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200/60 bg-slate-100 transition-transform group-hover:scale-105 dark:border-white/[0.06] dark:bg-white/[0.04]">
+                      <Icon className={`size-5 ${iconColor}`} aria-hidden />
                     </div>
-                    <div className="mt-4 space-y-0.5">
-                      <span className="block truncate text-sm font-semibold text-slate-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-xs font-bold text-slate-900 transition-colors group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
                         {mod.title}
-                      </span>
-                      <span className="line-clamp-2 text-pretty text-xs text-slate-500">
-                        {mod.desc}
-                      </span>
+                      </h4>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">{mod.desc}</p>
                     </div>
                   </Link>
                 );
@@ -746,166 +758,134 @@ export default function MorePage() {
         {/* CARTE : ÉTAT DE LA PWA & CONNECTIVITÉ                     */}
         {/* ======================================================== */}
         {isManagement ? (
-          // Vue ADMIN / SYNDIC : Diagnostics techniques complets
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Card className="rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800">
-              <CardContent className="space-y-3 p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${
-                      isOnline ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
-                  >
-                    {isOnline ? (
-                      <Wifi className="h-5 w-5" />
-                    ) : (
-                      <WifiOff className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Connectivité réseau
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      {isOnline
-                        ? "En ligne — Connecté à l'API SyndicPro"
-                        : "Hors ligne — Stockage local Dexie actif"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50/80 p-3 text-xs dark:bg-slate-800/60">
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Modifications en file :</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {pendingCount} élément(s)
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500">État de synchronisation :</span>
-                    <span className="font-semibold text-sky-600 dark:text-sky-400">
-                      {isSyncing ? "En cours..." : "Prêt"}
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={syncNow}
-                  disabled={!isOnline || isSyncing}
-                  isLoading={isSyncing}
-                  className="w-full gap-2 min-h-[44px]"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Forcer la synchronisation manuelle
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800">
-              <CardContent className="space-y-3 p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-sm">
-                    <Smartphone className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Service Worker PWA
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Fichier : <code>/sw.js</code> (Cache version v2)
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50/80 p-3 text-xs dark:bg-slate-800/60">
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Statut du Service Worker :</span>
-                    <span
-                      className={`font-bold ${
-                        swActive ? "text-emerald-600" : "text-amber-500"
-                      }`}
-                    >
-                      {swActive ? "Actif & En cours d'exécution" : "Actif en production"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Support Navigateur :</span>
-                    <span className="font-semibold text-emerald-600">
-                      Installable (Manifest OK)
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleClearCache}
-                  className="w-full gap-2 min-h-[44px] text-rose-600 hover:text-rose-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Vider le cache local IndexedDB
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          // Vue RÉSIDENT (Propriétaire / Locataire / Technicien) : Statut épuré et rassurant
-          <Card className="rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800">
-            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex items-center gap-3.5">
+          <div className="grid grid-cols-1 gap-4 pt-2 lg:grid-cols-2">
+            <div className="glass-card space-y-4 rounded-3xl p-6">
+              <div className="flex items-center gap-3">
                 <div
-                  className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${
-                    isOnline ? "bg-emerald-500" : "bg-amber-500"
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-2xl border text-white ${
+                    isOnline
+                      ? "border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                      : "border-amber-500/25 bg-amber-500/15 text-amber-600"
                   }`}
                 >
-                  {isOnline ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
+                  {isOnline ? <Wifi className="size-5" /> : <WifiOff className="size-5" />}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Connectivité réseau</h3>
+                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    {isOnline
+                      ? "En ligne — Connecté au moteur SyndicPro Cloud"
+                      : "Hors ligne — Stockage local Dexie actif"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-slate-50/80 p-3 font-mono text-xs dark:border-white/[0.04] dark:bg-white/[0.02]">
+                <span className="text-slate-500 dark:text-slate-400">Modifications en file :</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {pendingCount} élément(s) · {isSyncing ? "Sync…" : "Prêt"}
+                </span>
+              </div>
+
+              <Button
+                variant="primary"
+                onClick={syncNow}
+                disabled={!isOnline || isSyncing}
+                isLoading={isSyncing}
+                className="w-full min-h-11 gap-2"
+              >
+                <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                Forcer la synchronisation manuelle
+              </Button>
+            </div>
+
+            <div className="glass-card space-y-4 rounded-3xl p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-blue-500/25 bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                  <Smartphone className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Service Worker & PWA</h3>
+                  <p className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                    Fichier : /sw.js (Cache version v2)
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500 dark:text-slate-400">Statut du Service Worker :</span>
+                  <span className={`font-bold ${swActive ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500"}`}>
+                    {swActive ? "Actif & En cours d'exécution" : "Actif en production"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500 dark:text-slate-400">Support Navigateur :</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">Installable (Manifest OK)</span>
+                </div>
+              </div>
+
+              <Button variant="outline" onClick={handleClearCache} className="w-full min-h-11 gap-2">
+                <Trash2 className="size-3.5 text-slate-400" />
+                Vider le cache local IndexedDB
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="glass-card rounded-3xl p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-2xl border text-white ${
+                    isOnline
+                      ? "border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                      : "border-amber-500/25 bg-amber-500/15 text-amber-600"
+                  }`}
+                >
+                  {isOnline ? <Wifi className="size-5" /> : <WifiOff className="size-5" />}
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
                     {isOnline ? "Connecté au serveur SyndicPro" : "Mode hors-ligne actif"}
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     {isOnline
                       ? "Vos charges, annonces et documents sont synchronisés."
                       : "Vos données restent consultables sans connexion Internet."}
                   </p>
                 </div>
               </div>
-
               <Button
-                size="sm"
                 variant="outline"
                 onClick={syncNow}
                 disabled={!isOnline || isSyncing}
                 isLoading={isSyncing}
-                className="gap-2 min-h-[44px] text-xs self-start sm:self-center"
+                className="min-h-11 gap-2 self-start text-xs sm:self-center"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="size-3.5" />
                 Actualiser mes données
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* FILE D'ATTENTE OUTBOX : ADMIN / SYNDIC UNIQUEMENT */}
         {isManagement && (
-          <div className="space-y-3">
-            <h2 className="text-pretty text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <div className="glass-card space-y-2 rounded-3xl p-5">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">
               File d&apos;attente Outbox ({outboxItems.length})
-            </h2>
+            </h3>
 
             {outboxItems.length === 0 ? (
-              <div className="sp-card rounded-[1.5rem] border border-dashed border-slate-200/80 p-6 text-center text-xs text-slate-500 dark:border-slate-800">
-                Aucune requête en attente dans la file d&apos;attente IndexedDB.
-              </div>
+              <p className="rounded-2xl border border-slate-200/60 bg-slate-50/80 p-4 text-center text-xs font-medium text-slate-500 dark:border-white/[0.04] dark:bg-white/[0.02] dark:text-slate-400">
+                Toutes les modifications locales sont synchronisées avec le serveur central de la copropriété.
+              </p>
             ) : (
               <div className="space-y-2">
                 {outboxItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex flex-col justify-between gap-2 rounded-[1.25rem] border border-slate-200/80 bg-white p-3.5 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:flex-row sm:items-center"
+                    className="flex flex-col justify-between gap-2 rounded-2xl border border-slate-200/60 bg-white/80 p-3.5 text-xs dark:border-white/[0.06] dark:bg-slate-900/40 sm:flex-row sm:items-center"
                   >
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
@@ -943,8 +923,7 @@ export default function MorePage() {
           </div>
         )}
 
-        {/* Informations de version */}
-        <Card className="space-y-2 rounded-[1.5rem] border border-slate-200/80 p-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        <Card className="space-y-2 p-4 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
             <Info className="h-4 w-4 text-sky-500" />
             <span>SyndicPro PWA — Version 1.0.0</span>

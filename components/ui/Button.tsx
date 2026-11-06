@@ -22,10 +22,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-semibold transition-[transform,opacity,background-color,border-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] select-none";
+      "inline-flex items-center justify-center font-semibold transition-[transform,opacity,background-color,border-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] select-none";
 
     const variants = {
-      primary: "bg-sky-500 text-white hover:bg-sky-600 shadow-sm",
+      primary:
+        "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500",
       secondary:
         "bg-slate-100 text-slate-800 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
       outline:
@@ -36,9 +37,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizes = {
-      sm: "min-h-10 gap-1.5 rounded-full px-4 py-1.5 text-xs",
-      md: "min-h-11 gap-2 rounded-full px-5 py-2 text-sm",
-      lg: "min-h-12 gap-2.5 rounded-full px-6 py-2.5 text-base",
+      sm: "min-h-11 gap-1.5 rounded-xl px-4 py-2 text-xs",
+      md: "min-h-11 gap-2 rounded-xl px-5 py-2 text-sm",
+      lg: "min-h-12 gap-2.5 rounded-xl px-6 py-2.5 text-base",
     };
 
     return (
