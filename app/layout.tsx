@@ -50,11 +50,11 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900 selection:bg-sky-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <body className="flex min-h-dvh flex-col bg-[#f4f5f7] font-sans text-slate-900 selection:bg-sky-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
         <OfflineBanner />
         <ServiceWorkerRegister />
         <InstallPrompt />
-        <div className="flex min-h-full flex-1 flex-col">{children}</div>
+        <div className="flex min-h-dvh flex-1 flex-col">{children}</div>
       </body>
     </html>
   );

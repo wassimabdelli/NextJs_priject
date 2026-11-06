@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Building2, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { saveOfflineSession } from "@/lib/offline/db";
 
 function LoginForm() {
@@ -58,7 +59,7 @@ function LoginForm() {
               id: sessionData.user.id,
               name: sessionData.user.name || "Utilisateur",
               email: sessionData.user.email || email,
-              role: sessionData.user.role || "RESIDENT",
+              role: sessionData.user.role || "OWNER",
               expiresAt: Date.now() + 7 * 24 * 3600 * 1000,
             });
           }
@@ -77,23 +78,21 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+    <div className="flex min-h-dvh w-full flex-col justify-center bg-[#f4f5f7] px-4 py-8 sm:px-6 lg:px-8 dark:bg-slate-950">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* En-tête avec logo SyndicPro */}
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white shadow-lg shadow-sky-500/30">
-            <Building2 className="h-7 w-7" />
+          <div className="flex size-14 items-center justify-center rounded-[1.5rem] bg-sky-500 text-white shadow-sm">
+            <Building2 className="size-7" aria-hidden />
           </div>
-          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+          <h1 className="mt-5 text-balance text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">
             Syndic<span className="text-sky-500">Pro</span>
           </h1>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-2 text-pretty text-sm text-slate-600 dark:text-slate-400">
             Connectez-vous pour accéder à votre espace de copropriété
           </p>
         </div>
 
-        {/* Carte de formulaire */}
-        <div className="mt-8 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/40 sm:p-8 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none">
+        <div className="sp-card mt-8 rounded-[1.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 dark:border-slate-800 dark:bg-slate-900">
           {errorMessage && (
             <div
               role="alert"
@@ -123,7 +122,7 @@ function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom@exemple.com"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
             </div>
@@ -146,7 +145,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 pr-11 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 pr-11 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
                 <button
                   type="button"
@@ -159,21 +158,17 @@ function LoginForm() {
               </div>
             </div>
 
-            {/* Bouton de soumission tactile >= 44px */}
-            <button
+            {/* Soumission : pill tactile (Button) */}
+            <Button
               type="submit"
+              variant="primary"
+              size="lg"
               disabled={loading}
-              className="flex min-h-[48px] w-full items-center justify-center rounded-xl bg-sky-500 px-4 py-3 text-base font-bold text-white shadow-md shadow-sky-500/25 transition-all hover:bg-sky-600 active:scale-[0.99] disabled:opacity-60"
+              isLoading={loading}
+              className="w-full justify-center text-base font-semibold shadow-sm"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Connexion en cours...
-                </>
-              ) : (
-                "Se connecter"
-              )}
-            </button>
+              {loading ? "Connexion en cours..." : "Se connecter"}
+            </Button>
           </form>
 
           {/* Lien vers inscription */}
@@ -182,9 +177,9 @@ function LoginForm() {
               Pas encore de compte ?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400"
+                className="font-semibold text-sky-500 hover:text-sky-600 dark:text-sky-400"
               >
-                Créer un compte résident
+                Créer un compte (propriétaire ou locataire)
               </Link>
             </p>
           </div>
@@ -203,8 +198,9 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+        <div className="flex min-h-dvh items-center justify-center bg-[#f4f5f7]">
+          <Loader2 className="size-8 animate-spin text-sky-500" aria-hidden />
+          <span className="sr-only">Chargement</span>
         </div>
       }
     >

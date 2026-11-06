@@ -524,15 +524,17 @@ export default function MorePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* En-tête adapté au profil */}
-        <div className="sp-page-header">
-          <h1 className="sp-title text-balance text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-            {isManagement ? "Gestion & Modules Copropriété" : "Services & Copropriété"}
+        <div className="sp-card overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+          <p className="text-pretty text-xs font-medium text-slate-500 dark:text-slate-400">
+            {isManagement ? "Pilotage copropriété" : "Espace résident"}
+          </p>
+          <h1 className="sp-title mt-1 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+            {isManagement ? "Gestion de la copropriété" : "Vos services"}
           </h1>
-          <p className="sp-body text-pretty text-sm text-slate-500 dark:text-slate-400">
+          <p className="sp-body mt-1.5 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
             {isManagement
               ? "Supervision des résidences, synchronisation hors ligne et administration"
-              : "Accédez à vos documents, démarches de copropriété et informations personnelles"}
+              : "Documents, démarches et informations personnelles"}
           </p>
         </div>
 
@@ -545,11 +547,11 @@ export default function MorePage() {
 
         {/* Bannière Élections (ADMIN uniquement) */}
         {currentUser?.role === Role.ADMIN && (
-          <Card className="border-sky-200 dark:border-sky-900">
+          <Card className="rounded-[1.5rem] border border-sky-200/80 dark:border-sky-900/60">
             <CardContent className="p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3.5">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white">
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-sm">
                     <Vote className="size-5" aria-hidden />
                   </div>
                   <div>
@@ -584,8 +586,8 @@ export default function MorePage() {
 
         {/* Modal de lancement d'élection (Admin) */}
         {showElectionModal && (
-          <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <Card className="w-full max-w-lg shadow-sm">
+          <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-sm">
+            <Card className="w-full max-w-lg rounded-[1.5rem] border border-slate-200/80 shadow-sm dark:border-slate-700">
               <CardContent className="p-6 space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
                   <div className="flex items-center gap-2">
@@ -691,8 +693,8 @@ export default function MorePage() {
         {/* GRILLE STRICTEMENT FILTRÉE SELON LE RÔLE                 */}
         {/* ======================================================== */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-            {isManagement ? "Modules de gestion & Copropriété" : "Vos Services & Espaces"}
+          <h2 className="text-pretty text-sm font-semibold text-slate-700 dark:text-slate-200">
+            {isManagement ? "Raccourcis de gestion" : "Raccourcis"}
           </h2>
 
           {loadingUser && modules.length === 0 ? (
@@ -700,7 +702,7 @@ export default function MorePage() {
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900"
+                  className="h-40 animate-pulse rounded-[1.5rem] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900"
                 />
               ))}
             </div>
@@ -712,32 +714,27 @@ export default function MorePage() {
                   <Link
                     key={mod.href}
                     href={mod.href}
-                    className={`flex min-h-24 flex-col gap-1 rounded-2xl border p-3.5 shadow-sm transition-colors duration-150 hover:border-sky-500 ${
-                      mod.highlight
-                        ? "border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30"
-                        : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                    className={`group flex min-h-[10rem] flex-col justify-between rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm transition-colors duration-150 hover:border-sky-300/80 hover:bg-sky-500/[0.06] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-800 dark:hover:bg-sky-950/30 ${
+                      mod.highlight ? "ring-1 ring-sky-500/15 dark:ring-sky-500/20" : ""
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`truncate text-sm font-semibold ${
-                          mod.highlight
-                            ? "text-sky-900 dark:text-sky-300"
-                            : "text-slate-900 dark:text-white"
-                        }`}
-                      >
+                    <div
+                      className={`flex size-12 items-center justify-center rounded-2xl shadow-sm ${
+                        mod.highlight
+                          ? "bg-sky-500 text-white"
+                          : "bg-slate-100 text-slate-600 group-hover:bg-sky-500/10 group-hover:text-sky-600 dark:bg-slate-800 dark:text-slate-300"
+                      }`}
+                    >
+                      <Icon className="size-5" aria-hidden />
+                    </div>
+                    <div className="mt-4 space-y-0.5">
+                      <span className="block truncate text-sm font-semibold text-slate-900 dark:text-white">
                         {mod.title}
                       </span>
-                      <Icon
-                        className={`size-4 shrink-0 ${
-                          mod.highlight ? "text-sky-600" : "text-slate-400"
-                        }`}
-                        aria-hidden
-                      />
+                      <span className="line-clamp-2 text-pretty text-xs text-slate-500">
+                        {mod.desc}
+                      </span>
                     </div>
-                    <span className="line-clamp-2 text-pretty text-xs text-slate-500">
-                      {mod.desc}
-                    </span>
                   </Link>
                 );
               })}
@@ -751,11 +748,11 @@ export default function MorePage() {
         {isManagement ? (
           // Vue ADMIN / SYNDIC : Diagnostics techniques complets
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Card>
-              <CardContent className="space-y-3 p-2">
+            <Card className="rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800">
+              <CardContent className="space-y-3 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-white ${
+                    className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${
                       isOnline ? "bg-emerald-500" : "bg-amber-500"
                     }`}
                   >
@@ -777,7 +774,7 @@ export default function MorePage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-slate-50 p-2.5 text-xs dark:bg-slate-800/60">
+                <div className="rounded-2xl bg-slate-50/80 p-3 text-xs dark:bg-slate-800/60">
                   <div className="flex justify-between py-1">
                     <span className="text-slate-500">Modifications en file :</span>
                     <span className="font-bold text-slate-900 dark:text-white">
@@ -806,10 +803,10 @@ export default function MorePage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="space-y-3 p-2">
+            <Card className="rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800">
+              <CardContent className="space-y-3 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-sm">
                     <Smartphone className="h-5 w-5" />
                   </div>
                   <div>
@@ -822,7 +819,7 @@ export default function MorePage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-slate-50 p-2.5 text-xs dark:bg-slate-800/60">
+                <div className="rounded-2xl bg-slate-50/80 p-3 text-xs dark:bg-slate-800/60">
                   <div className="flex justify-between py-1">
                     <span className="text-slate-500">Statut du Service Worker :</span>
                     <span
@@ -855,11 +852,11 @@ export default function MorePage() {
           </div>
         ) : (
           // Vue RÉSIDENT (Propriétaire / Locataire / Technicien) : Statut épuré et rassurant
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <Card className="rounded-[1.5rem] border border-slate-200/80 dark:border-slate-800">
+            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
               <div className="flex items-center gap-3.5">
                 <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${
+                  className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${
                     isOnline ? "bg-emerald-500" : "bg-amber-500"
                   }`}
                 >
@@ -895,12 +892,12 @@ export default function MorePage() {
         {/* FILE D'ATTENTE OUTBOX : ADMIN / SYNDIC UNIQUEMENT */}
         {isManagement && (
           <div className="space-y-3">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+            <h2 className="text-pretty text-sm font-semibold text-slate-800 dark:text-slate-100">
               File d&apos;attente Outbox ({outboxItems.length})
             </h2>
 
             {outboxItems.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500 dark:border-slate-800">
+              <div className="sp-card rounded-[1.5rem] border border-dashed border-slate-200/80 p-6 text-center text-xs text-slate-500 dark:border-slate-800">
                 Aucune requête en attente dans la file d&apos;attente IndexedDB.
               </div>
             ) : (
@@ -908,7 +905,7 @@ export default function MorePage() {
                 {outboxItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex flex-col justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3.5 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:flex-row sm:items-center"
+                    className="flex flex-col justify-between gap-2 rounded-[1.25rem] border border-slate-200/80 bg-white p-3.5 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:flex-row sm:items-center"
                   >
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
@@ -947,7 +944,7 @@ export default function MorePage() {
         )}
 
         {/* Informations de version */}
-        <Card className="p-4 space-y-2 text-xs text-slate-500 dark:text-slate-400">
+        <Card className="space-y-2 rounded-[1.5rem] border border-slate-200/80 p-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
           <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
             <Info className="h-4 w-4 text-sky-500" />
             <span>SyndicPro PWA — Version 1.0.0</span>

@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Building2, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Building2, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { saveOfflineSession } from "@/lib/offline/db";
 
 export default function RegisterPage() {
@@ -13,6 +14,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<"OWNER" | "TENANT">("OWNER");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +43,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1. Appel de création de compte résident
+      // 1. Appel de création de compte
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,6 +53,7 @@ export default function RegisterPage() {
           password,
           confirmPassword,
           phone: phone.trim() || undefined,
+          role,
         }),
       });
 
@@ -77,7 +80,7 @@ export default function RegisterPage() {
                 id: sessionData.user.id,
                 name: sessionData.user.name || name,
                 email: sessionData.user.email || email,
-                role: sessionData.user.role || "RESIDENT",
+                role: sessionData.user.role || role,
                 expiresAt: Date.now() + 7 * 24 * 3600 * 1000,
               });
             }
@@ -97,23 +100,21 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+    <div className="flex min-h-dvh w-full flex-col justify-center bg-[#f4f5f7] px-4 py-8 sm:px-6 lg:px-8 dark:bg-slate-950">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* En-tête */}
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white shadow-lg shadow-sky-500/30">
-            <Building2 className="h-7 w-7" />
+          <div className="flex size-14 items-center justify-center rounded-[1.5rem] bg-sky-500 text-white shadow-sm">
+            <Building2 className="size-7" aria-hidden />
           </div>
-          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-            Créer un compte <span className="text-sky-500">Résident</span>
+          <h1 className="mt-5 text-balance text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">
+            Créer un <span className="text-sky-500">compte</span>
           </h1>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-2 text-pretty text-sm text-slate-600 dark:text-slate-400">
             Rejoignez votre copropriété SyndicPro
           </p>
         </div>
 
-        {/* Carte formulaire */}
-        <div className="mt-8 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/40 sm:p-8 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none">
+        <div className="sp-card mt-8 rounded-[1.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 dark:border-slate-800 dark:bg-slate-900">
           {errorMessage && (
             <div
               role="alert"
@@ -125,6 +126,36 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Profil / Rôle */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Vous êtes
+              </label>
+              <div className="mt-1.5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole("OWNER")}
+                  className={`flex min-h-[44px] items-center justify-center rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+                    role === "OWNER"
+                      ? "border-sky-500/80 bg-sky-500/10 text-sky-700 shadow-sm dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500"
+                      : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                  }`}
+                >
+                  Propriétaire
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("TENANT")}
+                  className={`flex min-h-[44px] items-center justify-center rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+                    role === "TENANT"
+                      ? "border-sky-500/80 bg-sky-500/10 text-sky-700 shadow-sm dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500"
+                      : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                  }`}
+                >
+                  Locataire
+                </button>
+              </div>
+            </div>
             {/* Nom complet */}
             <div>
               <label
@@ -143,7 +174,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Jean Dupont"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
             </div>
@@ -166,7 +197,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom@exemple.com"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
             </div>
@@ -188,7 +219,7 @@ export default function RegisterPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+216 -- --- ---"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
             </div>
@@ -211,7 +242,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 pr-11 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 pr-11 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
                 <button
                   type="button"
@@ -242,26 +273,21 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="block w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 />
               </div>
             </div>
 
-            {/* Bouton s'inscrire */}
-            <button
+            <Button
               type="submit"
+              variant="primary"
+              size="lg"
               disabled={loading}
-              className="mt-2 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-sky-500 px-4 py-3 text-base font-bold text-white shadow-md shadow-sky-500/25 transition-all hover:bg-sky-600 active:scale-[0.99] disabled:opacity-60"
+              isLoading={loading}
+              className="mt-2 w-full justify-center text-base font-semibold shadow-sm"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Création du compte...
-                </>
-              ) : (
-                "Créer mon compte"
-              )}
-            </button>
+              {loading ? "Création du compte..." : "Créer mon compte"}
+            </Button>
           </form>
 
           {/* Lien retour connexion */}
@@ -270,7 +296,7 @@ export default function RegisterPage() {
               Vous possédez déjà un compte ?{" "}
               <Link
                 href="/login"
-                className="font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400"
+                className="font-semibold text-sky-500 hover:text-sky-600 dark:text-sky-400"
               >
                 Se connecter
               </Link>

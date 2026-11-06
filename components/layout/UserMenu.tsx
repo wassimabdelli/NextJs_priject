@@ -118,7 +118,7 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
         <Link
           href="/profile"
           aria-label="Consulter mon profil"
-          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-xs font-bold text-white"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-sky-500/20 bg-sky-500 text-xs font-semibold text-white shadow-sm"
           title="Consulter mon profil"
         >
           {user.name.slice(0, 2).toUpperCase()}
@@ -128,7 +128,7 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
           disabled={isLoggingOut}
           title="Se déconnecter"
           aria-label="Se déconnecter"
-          className="flex h-9 w-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-rose-600 transition-colors dark:text-slate-400 dark:hover:bg-slate-800"
+          className="flex h-9 w-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/80 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-slate-800/80"
         >
           <LogOut className="h-4 w-4" />
         </button>
@@ -137,17 +137,17 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-900/60">
+    <div className="sp-card flex flex-col gap-3 rounded-[1.5rem] border border-slate-200/80 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900/80">
       <Link
         href="/profile"
-        className="group -m-1.5 flex items-center gap-3 rounded-xl p-1.5 transition-colors hover:bg-slate-200/50 dark:hover:bg-slate-800/50"
+        className="group -m-1 flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
         title="Consulter mon profil"
       >
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-sm font-bold text-white">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-sky-500/15 bg-sky-500 text-sm font-semibold text-white shadow-sm">
           {user.name ? user.name.slice(0, 2).toUpperCase() : <UserIcon className="size-5" aria-hidden />}
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
-          <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400 transition-colors">
+          <p className="truncate text-sm font-semibold text-slate-900 transition-colors group-hover:text-sky-500 dark:text-white dark:group-hover:text-sky-400">
             {user.name}
           </p>
           <div className="mt-0.5 flex items-center gap-1.5">
@@ -162,7 +162,7 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
         type="button"
         onClick={handleLogout}
         disabled={isLoggingOut}
-        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 active:scale-[0.98] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-rose-950/30 dark:hover:border-rose-900/40 dark:hover:text-rose-400"
+        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:bg-rose-50/80 hover:border-rose-200/80 hover:text-rose-600 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-rose-950/30 dark:hover:border-rose-900/40 dark:hover:text-rose-400"
       >
         <LogOut className="h-4 w-4" />
         <span>{isLoggingOut ? "Déconnexion..." : "Déconnexion"}</span>

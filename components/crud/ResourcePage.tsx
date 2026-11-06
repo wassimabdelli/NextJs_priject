@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { RefreshCw, AlertCircle, Download } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { FilterBar } from "@/components/crud/FilterBar";
 import { ResourceList } from "@/components/crud/ResourceList";
@@ -16,6 +17,8 @@ import { getOfflineSession } from "@/lib/offline/db";
 
 export interface ResourcePageProps<T = any> {
   config: ResourceConfig<T>;
+  /** Sur-titre discret (ex. ressource ou module). */
+  eyebrow?: string;
   title?: string;
   description?: string;
   headerExtra?: (items: T[]) => React.ReactNode;
@@ -23,6 +26,7 @@ export interface ResourcePageProps<T = any> {
 
 function ResourcePageInner<T extends { _id?: string; id?: string }>({
   config,
+  eyebrow,
   title,
   description,
   headerExtra,
@@ -48,9 +52,7 @@ function ResourcePageInner<T extends { _id?: string; id?: string }>({
   } = useResource(config);
 
   const [userRole, setUserRole] = useState<Role | undefined>(undefined);
-  const [isOnline, setIsOnline] = useState<boolean>(() =>
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<T | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -60,8 +62,9 @@ function ResourcePageInner<T extends { _id?: string; id?: string }>({
 
   const isUrlInitializedRef = useRef(false);
 
-  // Suivi de l'état de connexion pour le bouton d'export CSV
+  // Suivi connexion après montage (évite hydratation SSR ≠ client)
   useEffect(() => {
+    setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
@@ -239,41 +242,37 @@ function ResourcePageInner<T extends { _id?: string; id?: string }>({
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* En-tête mobile-first */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-              {pageTitle}
-            </h1>
-            <p className="text-xs text-slate-500 sm:text-sm dark:text-slate-400">
-              {pageDescription}
-            </p>
-          </div>
+        <PageHeader
+          eyebrow={eyebrow || "Ressource"}
+          title={pageTitle}
+          description={pageDescription}
+          className="sp-card rounded-[1.5rem] border border-slate-200/80 bg-white p-5 sm:p-6 dark:border-slate-800 dark:bg-slate-900"
+          actions={
+            <>
+              {canExportCsv && (
+                <a
+                  href={`${config.exportPath}?${exportQuery}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200/80 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <Download className="size-4" aria-hidden />
+                  <span>Exporter CSV</span>
+                </a>
+              )}
 
-          <div className="flex items-center gap-2 self-start sm:self-center">
-            {canExportCsv && (
-              <a
-                href={`${config.exportPath}?${exportQuery}`}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:min-h-[36px] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={refresh}
+                disabled={loading}
+                className="gap-1.5 shadow-sm"
               >
-                <Download className="h-4 w-4" />
-                <span>Exporter CSV</span>
-              </a>
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={refresh}
-              disabled={loading}
-              className="min-h-[44px] gap-1.5 sm:min-h-[36px]"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Actualiser</span>
-            </Button>
-          </div>
-        </div>
+                <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden />
+                <span className="hidden sm:inline">Actualiser</span>
+              </Button>
+            </>
+          }
+        />
 
         {/* Message d'erreur éventuel */}
         {error && (
