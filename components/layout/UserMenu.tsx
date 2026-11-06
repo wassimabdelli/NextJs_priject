@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { LogOut, User as UserIcon } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Badge } from "@/components/ui/Badge";
@@ -28,7 +29,8 @@ const roleBadgeConfig: Record<Role, { label: string; variant: "default" | "succe
   [Role.ADMIN]: { label: "Admin", variant: "danger" },
   [Role.SYNDIC]: { label: "Syndic", variant: "info" },
   [Role.TECHNICIAN]: { label: "Technicien", variant: "warning" },
-  [Role.RESIDENT]: { label: "Résident", variant: "success" },
+  [Role.OWNER]: { label: "Propriétaire", variant: "success" },
+  [Role.TENANT]: { label: "Locataire", variant: "success" },
 };
 
 export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
@@ -113,9 +115,14 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
   if (compact) {
     return (
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs dark:bg-sky-950 dark:text-sky-300">
+        <Link
+          href="/profile"
+          aria-label="Consulter mon profil"
+          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-xs font-bold text-white"
+          title="Consulter mon profil"
+        >
           {user.name.slice(0, 2).toUpperCase()}
-        </div>
+        </Link>
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
@@ -131,12 +138,16 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-900/60">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 to-sky-400 font-bold text-white shadow-sm shadow-sky-500/20">
-          {user.name ? user.name.slice(0, 2).toUpperCase() : <UserIcon className="h-5 w-5" />}
+      <Link
+        href="/profile"
+        className="group -m-1.5 flex items-center gap-3 rounded-xl p-1.5 transition-colors hover:bg-slate-200/50 dark:hover:bg-slate-800/50"
+        title="Consulter mon profil"
+      >
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-sm font-bold text-white">
+          {user.name ? user.name.slice(0, 2).toUpperCase() : <UserIcon className="size-5" aria-hidden />}
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
-          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+          <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400 transition-colors">
             {user.name}
           </p>
           <div className="mt-0.5 flex items-center gap-1.5">
@@ -145,7 +156,7 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
             </Badge>
           </div>
         </div>
-      </div>
+      </Link>
 
       <button
         type="button"

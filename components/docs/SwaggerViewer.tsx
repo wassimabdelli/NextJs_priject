@@ -73,24 +73,24 @@ export function SwaggerViewer({ user }: SwaggerViewerProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-dvh bg-slate-50 dark:bg-slate-900">
       {/* Barre supérieure d'information et navigation */}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white shadow-md shadow-sky-500/20">
-              <Building2 className="h-5 w-5" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sm">
+              <Building2 className="size-5" aria-hidden />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+                <span className="text-balance text-lg font-extrabold text-slate-900 dark:text-white">
                   Syndic<span className="text-sky-500">Pro</span>
                 </span>
                 <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                   OpenAPI 3.0
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Documentation Swagger UI</p>
+              <p className="text-pretty text-xs text-slate-500 dark:text-slate-400">Documentation Swagger UI</p>
             </div>
           </div>
 
