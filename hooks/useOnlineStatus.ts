@@ -4,10 +4,14 @@ import { useEffect, useState, useCallback } from "react";
 import { getOfflineDB } from "@/lib/offline/db";
 import { syncOutbox, onSyncChange, initAutoSync } from "@/lib/offline/sync";
 
+/**
+ * Statut réseau / outbox.
+ * `isOnline` démarre toujours à `true` (SSR = client) puis se synchronise au montage
+ * pour éviter les erreurs d'hydratation (Wifi vs WifiOff).
+ */
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -18,14 +22,13 @@ export function useOnlineStatus() {
       const count = await db.outbox.where("status").anyOf(["pending", "failed"]).count();
       setPendingCount(count);
     } catch {
-      // Ignorer si IndexedDB n'est pas encore initialisé
+      // IndexedDB pas encore prêt
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     setIsOnline(navigator.onLine);
+    setHydrated(true);
     refreshPendingCount();
     initAutoSync();
 
@@ -47,7 +50,6 @@ export function useOnlineStatus() {
       setPendingCount(count);
     });
 
-    // Intervalle de vérification du compteur outbox
     const interval = setInterval(refreshPendingCount, 5000);
 
     return () => {
@@ -68,5 +70,5 @@ export function useOnlineStatus() {
     }
   }, [refreshPendingCount]);
 
-  return { isOnline, pendingCount, isSyncing, syncNow, refreshPendingCount };
+  return { isOnline, hydrated, pendingCount, isSyncing, syncNow, refreshPendingCount };
 }

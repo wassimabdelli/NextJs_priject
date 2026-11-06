@@ -6,7 +6,8 @@ import { Role } from "@/types/enums";
 export const ROLE_HOME: Record<Role, string> = {
   [Role.ADMIN]: "/dashboard",
   [Role.SYNDIC]: "/dashboard",
-  [Role.RESIDENT]: "/dashboard",
+  [Role.OWNER]: "/dashboard",
+  [Role.TENANT]: "/dashboard",
   [Role.TECHNICIAN]: "/incidents",
 };
 
@@ -14,20 +15,27 @@ export const ROLE_HOME: Record<Role, string> = {
  * Définition des rôles autorisés par préfixe de route d'interface.
  */
 export const ROUTE_ACCESS: Record<string, Role[]> = {
-  "/dashboard": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
+  "/dashboard": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
   "/residences": [Role.ADMIN, Role.SYNDIC],
-  "/apartments": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+  "/apartments": [Role.ADMIN, Role.SYNDIC],
   "/residents": [Role.ADMIN, Role.SYNDIC],
   "/expenses": [Role.ADMIN, Role.SYNDIC],
   "/users": [Role.ADMIN, Role.SYNDIC],
-  "/charges": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
-  "/payments": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
-  "/incidents": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
-  "/announcements": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
-  "/votes": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
-  "/meetings": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
-  "/resolutions": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
-  "/documents": [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+  "/charges": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
+  "/payments": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
+  "/incidents": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
+  "/announcements": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
+  "/votes": [Role.ADMIN, Role.SYNDIC, Role.OWNER],
+  "/meetings": [Role.ADMIN, Role.SYNDIC, Role.OWNER],
+  "/resolutions": [Role.ADMIN, Role.SYNDIC, Role.OWNER],
+  "/documents": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
+  "/elections": [Role.ADMIN, Role.SYNDIC, Role.OWNER],
+  "/join": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
+  "/join-requests": [Role.ADMIN, Role.SYNDIC],
+  "/wallet": [Role.OWNER, Role.TENANT, Role.ADMIN, Role.SYNDIC],
+  "/notifications": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
+  "/profile": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
+  "/more": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
   "/api-docs": [Role.ADMIN, Role.SYNDIC],
   "/api/openapi": [Role.ADMIN, Role.SYNDIC],
 };
@@ -77,16 +85,16 @@ export function can(role: Role, action: Action, resource: Resource): boolean {
     case "charge":
     case "payment":
       if (role === Role.SYNDIC) return true;
-      if (role === Role.RESIDENT) {
-        // Le résident peut uniquement consulter ses charges et effectuer un paiement
+      if (role === Role.OWNER || role === Role.TENANT) {
+        // Le propriétaire ou locataire peut uniquement consulter ses charges et effectuer un paiement
         return action === "read" || action === "create";
       }
       return false;
 
     case "incident":
       if (role === Role.SYNDIC) return true;
-      if (role === Role.RESIDENT) {
-        // Le résident peut déclarer et lire ses incidents
+      if (role === Role.OWNER || role === Role.TENANT) {
+        // Le propriétaire ou locataire peut déclarer et lire ses incidents
         return action === "create" || action === "read";
       }
       if (role === Role.TECHNICIAN) {
@@ -97,21 +105,21 @@ export function can(role: Role, action: Action, resource: Resource): boolean {
 
     case "announcement":
       if (role === Role.SYNDIC) return true;
-      // Résident et technicien sont en lecture seule pour les annonces
+      // Propriétaire, locataire et technicien sont en lecture seule pour les annonces
       return action === "read";
 
     case "meeting":
     case "resolution":
     case "vote":
       if (role === Role.SYNDIC) return true;
-      if (role === Role.RESIDENT) {
+      if (role === Role.OWNER) {
         return action === "read" || (resource === "vote" && action === "create");
       }
       return false;
 
     case "document":
       if (role === Role.SYNDIC) return true;
-      if (role === Role.RESIDENT) {
+      if (role === Role.OWNER || role === Role.TENANT) {
         return action === "read";
       }
       return false;

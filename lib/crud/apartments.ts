@@ -12,7 +12,7 @@ export const apartmentCrudRoutes = createCrudRoutes({
   createSchema: apartmentCreateSchema,
   updateSchema: apartmentUpdateSchema,
   access: {
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
     create: [Role.ADMIN, Role.SYNDIC],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
@@ -35,8 +35,8 @@ export const apartmentCrudRoutes = createCrudRoutes({
       const syndicResidences = await getSyndicResidenceIds(user.id);
       return { residence: { $in: syndicResidences } };
     }
-    // 3. RESIDENT : lecture de son propre appartement uniquement
-    if (user.role === Role.RESIDENT) {
+    // 3. OWNER ou TENANT : lecture de son propre appartement uniquement
+    if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const allowedAptIds = await getResidentApartmentIds(user.id);
       return { _id: { $in: allowedAptIds } };
     }

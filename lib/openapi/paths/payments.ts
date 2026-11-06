@@ -8,7 +8,7 @@ export function registerPaymentsPaths() {
     tags: ["Paiements"],
     summary: "Lister les règlements enregistrés",
     description:
-      "Renvoie l'historique des paiements reçus. Un RESIDENT ne voit que les règlements associés à ses propres charges.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+      "Renvoie l'historique des paiements reçus. Un OWNER ou TENANT ne voit que les règlements associés à ses propres charges.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT.",
     security: [{ cookieAuth: [] }],
     request: {
       query: z.object({
@@ -48,7 +48,7 @@ export function registerPaymentsPaths() {
     tags: ["Paiements"],
     summary: "Enregistrer un paiement (Idempotent)",
     description:
-      "Enregistre un nouveau règlement pour une charge. IDEMPOTENT via le paramètre 'clientId' pour garantir l'absence de double débit en mode hors-ligne. Le champ 'receivedBy' est toujours renseigné côté serveur via la session active.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+      "Enregistre un nouveau règlement pour une charge. IDEMPOTENT via le paramètre 'clientId' pour garantir l'absence de double débit en mode hors-ligne. Le champ 'receivedBy' est toujours renseigné côté serveur via la session active.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT.",
     security: [{ cookieAuth: [] }],
     request: {
       body: {

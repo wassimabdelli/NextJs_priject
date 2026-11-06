@@ -112,7 +112,7 @@ export function ResolutionResultsModal({ resolutionId, onClose }: Props) {
                   <XCircle className="h-7 w-7 text-rose-600 shrink-0" />
                 )}
                 <div>
-                  <p className="text-xs uppercase tracking-wide font-bold opacity-75">
+                  <p className="text-xs font-bold uppercase opacity-75">
                     Résultat de la résolution
                   </p>
                   <p className="text-base font-extrabold">
@@ -137,7 +137,7 @@ export function ResolutionResultsModal({ resolutionId, onClose }: Props) {
                   }`}
                 />
                 <div>
-                  <p className="text-xs uppercase tracking-wide font-bold opacity-75">
+                  <p className="text-xs font-bold uppercase opacity-75">
                     Quorum de l&apos;Assemblée
                   </p>
                   <p className="text-base font-extrabold">

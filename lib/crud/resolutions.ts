@@ -12,7 +12,7 @@ export const resolutionCrudRoutes = createCrudRoutes({
   createSchema: resolutionCreateSchema,
   updateSchema: resolutionUpdateSchema,
   access: {
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER],
     create: [Role.ADMIN, Role.SYNDIC],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
@@ -29,7 +29,7 @@ export const resolutionCrudRoutes = createCrudRoutes({
       const meetingIds = await Meeting.find({ residence: { $in: resIds } }).distinct("_id");
       return { meeting: { $in: meetingIds } };
     }
-    if (user.role === Role.RESIDENT) {
+    if (user.role === Role.OWNER) {
       const resIds = await getResidentResidenceIds(user.id);
       const meetingIds = await Meeting.find({ residence: { $in: resIds } }).distinct("_id");
       return { meeting: { $in: meetingIds } };

@@ -1,8 +1,22 @@
 import mongoose, { Schema, model, type Model, type Types, type HydratedDocument } from "mongoose";
-import { IncidentCategory, IncidentStatus, Priority, values } from "@/types/enums";
+import {
+  IncidentCategory,
+  IncidentStatus,
+  IncidentTimelineType,
+  Priority,
+  values,
+} from "@/types/enums";
 import "./User";
 import "./Apartment";
 import "./Residence";
+
+export interface IIncidentTimelineEntry {
+  at: Date;
+  by?: Types.ObjectId;
+  type: IncidentTimelineType;
+  message: string;
+  meta?: Record<string, unknown>;
+}
 
 export interface IIncident {
   residence: Types.ObjectId;
@@ -12,28 +26,40 @@ export interface IIncident {
   title: string;
   description: string;
   category: IncidentCategory;
-  /** URLs ou data-URLs des photos */
+  /** Photos générales (rétrocompat) */
   photos: string[];
+  beforePhotos: string[];
+  afterPhotos: string[];
   priority: Priority;
   status: IncidentStatus;
   reportedAt: Date;
   resolvedAt?: Date;
-  /** true si l'incident a été saisi hors ligne puis synchronisé */
+  slaDueAt?: Date;
+  slaBreached: boolean;
+  timeline: IIncidentTimelineEntry[];
   createdOffline: boolean;
-  /** uuid généré côté client pour l'idempotence de la synchro offline */
   clientId?: string;
   syncedAt?: Date;
 }
 
 export interface IIncidentMethods {
-  /** Assigne un technicien et passe le statut à ASSIGNED si l'incident était seulement signalé. */
   assignTo(technicianId: Types.ObjectId | string): IncidentDocument;
-  /** Change le statut ; renseigne resolvedAt au passage à RESOLVED. */
   changeStatus(status: IncidentStatus): IncidentDocument;
 }
 
 export type IncidentModel = Model<IIncident, {}, IIncidentMethods>;
 export type IncidentDocument = HydratedDocument<IIncident, IIncidentMethods>;
+
+const TimelineSchema = new Schema<IIncidentTimelineEntry>(
+  {
+    at: { type: Date, default: () => new Date() },
+    by: { type: Schema.Types.ObjectId, ref: "User" },
+    type: { type: String, enum: values(IncidentTimelineType), required: true },
+    message: { type: String, required: true },
+    meta: { type: Schema.Types.Mixed },
+  },
+  { _id: false }
+);
 
 const IncidentSchema = new Schema<IIncident, IncidentModel, IIncidentMethods>(
   {
@@ -45,10 +71,15 @@ const IncidentSchema = new Schema<IIncident, IncidentModel, IIncidentMethods>(
     description: { type: String, required: true, trim: true },
     category: { type: String, enum: values(IncidentCategory), required: true },
     photos: { type: [String], default: [] },
+    beforePhotos: { type: [String], default: [] },
+    afterPhotos: { type: [String], default: [] },
     priority: { type: String, enum: values(Priority), default: Priority.MEDIUM },
     status: { type: String, enum: values(IncidentStatus), default: IncidentStatus.REPORTED },
     reportedAt: { type: Date, default: () => new Date() },
     resolvedAt: { type: Date },
+    slaDueAt: { type: Date },
+    slaBreached: { type: Boolean, default: false },
+    timeline: { type: [TimelineSchema], default: [] },
     createdOffline: { type: Boolean, default: false },
     clientId: { type: String, unique: true, sparse: true },
     syncedAt: { type: Date },
@@ -58,6 +89,7 @@ const IncidentSchema = new Schema<IIncident, IncidentModel, IIncidentMethods>(
 
 IncidentSchema.index({ residence: 1, status: 1 });
 IncidentSchema.index({ assignedTo: 1, status: 1 });
+IncidentSchema.index({ slaDueAt: 1, status: 1 });
 
 IncidentSchema.method("assignTo", function (technicianId: Types.ObjectId | string) {
   this.assignedTo = new mongoose.Types.ObjectId(String(technicianId));
@@ -67,7 +99,6 @@ IncidentSchema.method("assignTo", function (technicianId: Types.ObjectId | strin
 
 IncidentSchema.method("changeStatus", function (status: IncidentStatus) {
   this.status = status;
-  // resolvedAt n'a de sens que pour un incident résolu
   this.resolvedAt = status === IncidentStatus.RESOLVED ? (this.resolvedAt ?? new Date()) : undefined;
   return this;
 });

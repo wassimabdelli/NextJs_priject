@@ -74,7 +74,7 @@ export function registerResolutionsPaths() {
     path: "/api/resolutions/{id}/results",
     tags: ["Résolutions"],
     summary: "Dépouillement des votes et calcul du quorum",
-    description: "Renvoie les totaux pondérés (POUR, CONTRE, ABSTENTION) selon les tantièmes, l'adoption selon la majorité requise et l'atteinte du quorum de l'AG.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+    description: "Renvoie les totaux pondérés (POUR, CONTRE, ABSTENTION) selon les tantièmes, l'adoption selon la majorité requise et l'atteinte du quorum de l'AG.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER.",
     security: [{ cookieAuth: [] }],
     request: {
       params: z.object({ id: z.string().openapi({ description: "ID de la résolution" }) }),

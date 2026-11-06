@@ -90,14 +90,14 @@ export const GET = withAuth(
           .find({ residence: { $in: syndicResIds } })
           .distinct("_id");
       }
-    } else if (user.role === Role.RESIDENT) {
+    } else if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const needsApt =
         requestedTypes.includes("charge") ||
         requestedTypes.includes("apartment");
       const needsRes =
         requestedTypes.includes("announcement") ||
         requestedTypes.includes("document") ||
-        requestedTypes.includes("meeting");
+        (user.role === Role.OWNER && requestedTypes.includes("meeting"));
 
       const [aptIds, resIds] = await Promise.all([
         needsApt ? getResidentApartmentIds(user.id) : Promise.resolve([]),
@@ -128,7 +128,8 @@ export const GET = withAuth(
           }
           return { residence: { $in: syndicResIds } };
 
-        case Role.RESIDENT:
+        case Role.OWNER:
+        case Role.TENANT:
           switch (type) {
             case "incident":
               return { reportedBy: user.id };
@@ -138,8 +139,12 @@ export const GET = withAuth(
               return { _id: { $in: residentAptIds } };
             case "announcement":
             case "document":
-            case "meeting":
               return { residence: { $in: residentResIds } };
+            case "meeting":
+              if (user.role === Role.OWNER) {
+                return { residence: { $in: residentResIds } };
+              }
+              return null; // Interdit aux locataires
             case "resident":
               return null; // Interdit aux résidents
           }
@@ -381,6 +386,6 @@ export const GET = withAuth(
     return json({ data });
   },
   {
-    roles: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
+    roles: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
   }
 );

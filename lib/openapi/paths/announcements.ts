@@ -8,7 +8,7 @@ export function registerAnnouncementsPaths() {
     tags: ["Annonces"],
     summary: "Lister les annonces de copropriété",
     description:
-      "Renvoie le flux des annonces de la résidence, ordonnées par priorité (épinglées d'abord) puis chronologiquement. Un RESIDENT ne voit que les annonces de son immeuble.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT, TECHNICIAN.",
+      "Renvoie le flux des annonces de la résidence, ordonnées par priorité (épinglées d'abord) puis chronologiquement. Un OWNER ou TENANT ne voit que les annonces de son immeuble.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT, TECHNICIAN.",
     security: [{ cookieAuth: [] }],
     request: {
       query: z.object({

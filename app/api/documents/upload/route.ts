@@ -106,5 +106,5 @@ export const POST = withAuth(
       201
     );
   },
-  { roles: [Role.ADMIN, Role.SYNDIC] }
+  { roles: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN] }
 );

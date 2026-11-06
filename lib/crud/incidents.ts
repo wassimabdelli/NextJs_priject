@@ -9,8 +9,11 @@ import {
   getTechnicianResidenceIds,
 } from "@/lib/auth-guard";
 import { incidentCreateSchema, incidentEditSchema } from "@/lib/validations/incident";
-import { Role } from "@/types/enums";
+import { IncidentStatus, IncidentTimelineType, Role } from "@/types/enums";
 import { HttpError } from "@/lib/api";
+import { computeSlaDueAt } from "@/lib/incidents/sla";
+import { findTechnicianForCategory } from "@/lib/incidents/autoAssign";
+import { Priority } from "@/types/enums";
 
 export const incidentCrudRoutes = createCrudRoutes({
   model: Incident,
@@ -18,8 +21,8 @@ export const incidentCrudRoutes = createCrudRoutes({
   updateSchema: incidentEditSchema,
   access: {
     // Tous les rôles peuvent lire (scopé) et créer
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
-    create: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
+    create: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
   },
@@ -30,6 +33,7 @@ export const incidentCrudRoutes = createCrudRoutes({
     { path: "apartment", select: "number floor" },
     { path: "reportedBy", select: "name email" },
     { path: "assignedTo", select: "name email phone" },
+    { path: "timeline.by", select: "name role" },
   ],
   filterFields: ["residence", "category", "priority", "status"],
 
@@ -47,19 +51,63 @@ export const incidentCrudRoutes = createCrudRoutes({
     if (user.role === Role.TECHNICIAN) {
       return { assignedTo: user.id };
     }
-    // 4. RESIDENT : uniquement ses incidents signalés
-    if (user.role === Role.RESIDENT) {
+    // 4. OWNER ou TENANT : uniquement ses incidents signalés
+    if (user.role === Role.OWNER || user.role === Role.TENANT) {
       return { reportedBy: user.id };
     }
     return {};
   },
 
-  injectOnCreate: async (user) => {
+  injectOnCreate: async (user, body) => {
     // Règle de sécurité stricte : reportedBy est TOUJOURS session.user.id
+    const priority = (body.priority as Priority) || Priority.MEDIUM;
+    const now = new Date();
     return {
       reportedBy: user.id,
-      syncedAt: new Date(),
+      syncedAt: now,
+      slaDueAt: computeSlaDueAt(priority, now),
+      slaBreached: false,
+      beforePhotos: Array.isArray(body.photos) ? body.photos.slice(0, 3) : [],
+      timeline: [
+        {
+          at: now,
+          by: user.id,
+          type: IncidentTimelineType.CREATED,
+          message: "Incident signalé",
+        },
+      ],
     };
+  },
+
+  afterCreate: async (doc, user) => {
+    // Auto-assignation par catégorie si aucun technicien n'est déjà posé
+    if (doc.assignedTo) return;
+    const techId = await findTechnicianForCategory(
+      String(doc.residence),
+      doc.category
+    );
+    if (!techId) return;
+
+    doc.assignedTo = techId;
+    if (doc.status === IncidentStatus.REPORTED) {
+      doc.status = IncidentStatus.ASSIGNED;
+    }
+    doc.timeline = [
+      ...(doc.timeline || []),
+      {
+        at: new Date(),
+        by: user.id,
+        type: IncidentTimelineType.ASSIGNED,
+        message: "Technicien assigné automatiquement selon la catégorie",
+        meta: { assignedTo: techId, auto: true },
+      },
+    ];
+    await doc.save();
+    if (typeof doc.populate === "function") {
+      await doc.populate([
+        { path: "assignedTo", select: "name email phone" },
+      ]);
+    }
   },
 
   beforeCreate: async (user, body) => {
@@ -75,7 +123,7 @@ export const incidentCrudRoutes = createCrudRoutes({
       }
     }
 
-    if (user.role === Role.RESIDENT) {
+    if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const residentResidences = await getResidentResidenceIds(user.id);
       if (!residentResidences.includes(String(body.residence))) {
         throw new HttpError(

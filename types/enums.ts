@@ -12,7 +12,8 @@ export function values<T extends Record<string, string>>(e: T) {
 export const Role = {
   ADMIN: "ADMIN",
   SYNDIC: "SYNDIC",
-  RESIDENT: "RESIDENT",
+  OWNER: "OWNER",
+  TENANT: "TENANT",
   TECHNICIAN: "TECHNICIAN",
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
@@ -36,8 +37,52 @@ export const PaymentMethod = {
   BANK_TRANSFER: "BANK_TRANSFER",
   CHEQUE: "CHEQUE",
   CARD: "CARD",
+  FLIP: "FLIP",
+  D17: "D17",
 } as const;
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
+
+export const PaymentValidationStatus = {
+  PENDING_VALIDATION: "PENDING_VALIDATION",
+  VALIDATED: "VALIDATED",
+  REJECTED: "REJECTED",
+} as const;
+export type PaymentValidationStatus =
+  (typeof PaymentValidationStatus)[keyof typeof PaymentValidationStatus];
+
+export const ReminderType = {
+  UNPAID_CHARGE: "UNPAID_CHARGE",
+  MEETING_TOMORROW: "MEETING_TOMORROW",
+  INCIDENT_STATUS: "INCIDENT_STATUS",
+  PAYMENT_VALIDATION: "PAYMENT_VALIDATION",
+} as const;
+export type ReminderType = (typeof ReminderType)[keyof typeof ReminderType];
+
+export const ReminderChannel = {
+  IN_APP: "IN_APP",
+  WHATSAPP: "WHATSAPP",
+  PUSH: "PUSH",
+} as const;
+export type ReminderChannel = (typeof ReminderChannel)[keyof typeof ReminderChannel];
+
+export const ReminderStatus = {
+  PENDING: "PENDING",
+  SENT: "SENT",
+  FAILED: "FAILED",
+} as const;
+export type ReminderStatus = (typeof ReminderStatus)[keyof typeof ReminderStatus];
+
+export const IncidentTimelineType = {
+  CREATED: "CREATED",
+  ASSIGNED: "ASSIGNED",
+  STATUS: "STATUS",
+  PHOTO_BEFORE: "PHOTO_BEFORE",
+  PHOTO_AFTER: "PHOTO_AFTER",
+  COMMENT: "COMMENT",
+  SLA_BREACH: "SLA_BREACH",
+} as const;
+export type IncidentTimelineType =
+  (typeof IncidentTimelineType)[keyof typeof IncidentTimelineType];
 
 export const ExpenseCategory = {
   WATER: "WATER",
@@ -82,6 +127,13 @@ export const MeetingStatus = {
   CLOSED: "CLOSED",
 } as const;
 export type MeetingStatus = (typeof MeetingStatus)[keyof typeof MeetingStatus];
+
+export const ElectionPhase = {
+  CANDIDACY: "CANDIDACY",
+  VOTING: "VOTING",
+  COMPLETED: "COMPLETED",
+} as const;
+export type ElectionPhase = (typeof ElectionPhase)[keyof typeof ElectionPhase];
 
 export const VoteChoice = {
   FOR: "FOR",
@@ -136,4 +188,19 @@ export const paymentMethodLabel: Record<PaymentMethod, string> = {
   BANK_TRANSFER: "Virement",
   CHEQUE: "Chèque",
   CARD: "Carte",
+  FLIP: "Flip",
+  D17: "D17",
+};
+
+export const paymentValidationLabel: Record<PaymentValidationStatus, string> = {
+  PENDING_VALIDATION: "En attente de validation",
+  VALIDATED: "Validé",
+  REJECTED: "Rejeté",
+};
+
+export const reminderTypeLabel: Record<ReminderType, string> = {
+  UNPAID_CHARGE: "Charge impayée",
+  MEETING_TOMORROW: "Réunion demain",
+  INCIDENT_STATUS: "Statut incident",
+  PAYMENT_VALIDATION: "Validation paiement",
 };

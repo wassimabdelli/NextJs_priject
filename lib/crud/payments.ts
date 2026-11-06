@@ -5,17 +5,27 @@ import { Charge } from "@/models/Charge";
 import { Apartment } from "@/models/Apartment";
 import { getResidentApartmentIds, getSyndicResidenceIds } from "@/lib/auth-guard";
 import { paymentCreateSchema, paymentUpdateSchema } from "@/lib/validations/payment";
-import { Role } from "@/types/enums";
+import { PaymentValidationStatus, Role } from "@/types/enums";
 import { HttpError } from "@/lib/api";
 
 /**
  * Helper qui recalcule et persiste le montant payé et le statut d'une charge
- * à partir de la somme réelle de tous ses paiements.
+ * à partir de la somme des paiements VALIDÉS uniquement.
  */
 export async function recalculateCharge(chargeId: string | mongoose.Types.ObjectId): Promise<void> {
   const cId = new mongoose.Types.ObjectId(String(chargeId));
   const [agg] = await Payment.aggregate<{ total: number }>([
-    { $match: { charge: cId } },
+    {
+      $match: {
+        charge: cId,
+        validationStatus: {
+          $nin: [
+            PaymentValidationStatus.PENDING_VALIDATION,
+            PaymentValidationStatus.REJECTED,
+          ],
+        },
+      },
+    },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
   const charge = await Charge.findById(cId);
@@ -30,7 +40,7 @@ export const paymentCrudRoutes = createCrudRoutes({
   createSchema: paymentCreateSchema,
   updateSchema: paymentUpdateSchema,
   access: {
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
     create: [Role.ADMIN, Role.SYNDIC],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
@@ -82,8 +92,8 @@ export const paymentCrudRoutes = createCrudRoutes({
       const chargeIds = await Charge.find({ apartment: { $in: aptIds } }).distinct("_id");
       return { charge: { $in: chargeIds } };
     }
-    // 3. RESIDENT : paiements rattachés à ses propres charges uniquement
-    if (user.role === Role.RESIDENT) {
+    // 3. OWNER ou TENANT : paiements rattachés à ses propres charges uniquement
+    if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const allowedAptIds = await getResidentApartmentIds(user.id);
       const chargeIds = await Charge.find({ apartment: { $in: allowedAptIds } }).distinct("_id");
       return { charge: { $in: chargeIds } };
@@ -105,6 +115,9 @@ export const paymentCrudRoutes = createCrudRoutes({
     return {
       receivedBy: user.id,
       receiptNumber,
+      validationStatus: PaymentValidationStatus.VALIDATED,
+      validatedBy: user.id,
+      validatedAt: new Date(),
       syncedAt: new Date(),
     };
   },
@@ -126,11 +139,23 @@ export const paymentCrudRoutes = createCrudRoutes({
     }
 
     // Règle métier : refuse un montant supérieur au reste à payer
-    const remaining = Math.round((charge.amount - (charge.paidAmount || 0)) * 100) / 100;
+    // (les preuves en attente ne réduisent pas encore paidAmount)
+    const pending = await Payment.aggregate<{ total: number }>([
+      {
+        $match: {
+          charge: charge._id,
+          validationStatus: PaymentValidationStatus.PENDING_VALIDATION,
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const pendingTotal = pending[0]?.total ?? 0;
+    const remaining =
+      Math.round((charge.amount - (charge.paidAmount || 0) - pendingTotal) * 100) / 100;
     if (body.amount > remaining + 0.001) {
       throw new HttpError(
         400,
-        `Le montant saisi (${body.amount.toFixed(2)} €) dépasse le reste à payer de cette charge (${remaining.toFixed(2)} €)`
+        `Le montant saisi (${body.amount.toFixed(2)} TND) dépasse le reste à payer de cette charge (${remaining.toFixed(2)} TND)`
       );
     }
   },

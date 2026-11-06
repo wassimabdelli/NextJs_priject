@@ -86,7 +86,7 @@ export const GET = withAuth(
       if (!resId || !syndicResidenceIds.includes(resId)) {
         throw new HttpError(404, "Reçu introuvable");
       }
-    } else if (user.role === Role.RESIDENT) {
+    } else if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const residentApartmentIds = await getResidentApartmentIds(user.id);
       const aptId = apartment?._id ? String(apartment._id) : String(charge?.apartment || "");
       if (!aptId || !residentApartmentIds.includes(aptId)) {
@@ -279,6 +279,6 @@ export const GET = withAuth(
     });
   },
   {
-    roles: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+    roles: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT],
   }
 );

@@ -24,7 +24,7 @@ export const proxy = auth((req) => {
   }
 
   const isLoggedIn = !!req.auth?.user;
-  const userRole = (req.auth?.user?.role as Role) || Role.RESIDENT;
+  const userRole = (req.auth?.user?.role as Role) || Role.OWNER;
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
 

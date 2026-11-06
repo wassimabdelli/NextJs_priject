@@ -9,7 +9,7 @@ export function registerIncidentsPaths() {
     tags: ["Incidents"],
     summary: "Lister les signalements d'incidents",
     description:
-      "Renvoie les incidents de copropriété. Filtrage strict par propriétaire : un TECHNICIAN ne voit que les incidents qui lui sont assignés, un RESIDENT ne voit que ses propres signalements.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT, TECHNICIAN.",
+      "Renvoie les incidents de copropriété. Filtrage strict par déclarant : un TECHNICIAN ne voit que les incidents qui lui sont assignés, un OWNER ou TENANT ne voit que ses propres signalements.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT, TECHNICIAN.",
     security: [{ cookieAuth: [] }],
     request: {
       query: z.object({
@@ -56,7 +56,7 @@ export function registerIncidentsPaths() {
     tags: ["Incidents"],
     summary: "Signaler un nouvel incident (Idempotent)",
     description:
-      "Crée un ticket d'incident. IDEMPOTENT via le paramètre 'clientId' pour la synchronisation hors-ligne. Le champ 'reportedBy' est automatiquement assigné côté serveur depuis la session.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+      "Crée un ticket d'incident. IDEMPOTENT via le paramètre 'clientId' pour la synchronisation hors-ligne. Le champ 'reportedBy' est automatiquement assigné côté serveur depuis la session.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT, TECHNICIAN.",
     security: [{ cookieAuth: [] }],
     request: {
       body: {
@@ -100,7 +100,7 @@ export function registerIncidentsPaths() {
     tags: ["Incidents"],
     summary: "Consulter les détails d'un incident",
     description:
-      "Détails d'un incident spécifique avec techniciens et déclarants peuplés.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT (auteur), TECHNICIAN (assigné).",
+      "Détails d'un incident spécifique avec techniciens et déclarants peuplés.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER/TENANT (auteur), TECHNICIAN (assigné).",
     security: [{ cookieAuth: [] }],
     request: {
       params: z.object({

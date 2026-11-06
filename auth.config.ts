@@ -38,7 +38,7 @@ export const authConfig: NextAuthConfig = {
       // Propagation de l'id et du rôle typé dans l'objet session client/serveur
       if (token && session.user) {
         session.user.id = (token.id as string) ?? (token.sub as string);
-        session.user.role = (token.role as Role) ?? Role.RESIDENT;
+        session.user.role = (token.role as Role) ?? Role.OWNER;
       }
       return session;
     },

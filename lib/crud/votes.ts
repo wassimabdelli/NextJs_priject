@@ -17,8 +17,8 @@ export const voteCrudRoutes = createCrudRoutes({
   createSchema: voteCreateSchema,
   updateSchema: voteUpdateSchema,
   access: {
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
-    create: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER],
+    create: [Role.ADMIN, Role.SYNDIC, Role.OWNER],
     update: [Role.ADMIN],
     delete: [Role.ADMIN],
   },
@@ -39,7 +39,7 @@ export const voteCrudRoutes = createCrudRoutes({
       const resols = await Resolution.find({ meeting: { $in: meetingIds } }).distinct("_id");
       return { resolution: { $in: resols } };
     }
-    if (user.role === Role.RESIDENT) {
+    if (user.role === Role.OWNER) {
       const myApts = await getResidentApartmentIds(user.id);
       return { apartment: { $in: myApts } };
     }
@@ -76,8 +76,8 @@ export const voteCrudRoutes = createCrudRoutes({
       throw new HttpError(400, "Le lot n'appartient pas à la résidence de cette assemblée");
     }
 
-    // Contrôle d'accès RESIDENT : ne peut voter qu'avec ses lots
-    if (user.role === Role.RESIDENT) {
+    // Contrôle d'accès OWNER : ne peut voter qu'avec ses lots
+    if (user.role === Role.OWNER) {
       const myApts = await getResidentApartmentIds(user.id);
       if (!myApts.includes(String(body.apartment))) {
         throw new HttpError(

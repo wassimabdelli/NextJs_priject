@@ -10,7 +10,7 @@ import { Role } from "@/types/enums";
 
 /**
  * Configuration CRUD de référence pour l'entité Announcement.
- * - Lecture : tous les rôles autorisés de la résidence (ADMIN, SYNDIC, RESIDENT, TECHNICIAN).
+ * - Lecture : tous les rôles autorisés de la résidence (ADMIN, SYNDIC, OWNER, TENANT, TECHNICIAN).
  * - Écriture / Modification / Suppression : réservées aux rôles ADMIN et SYNDIC.
  * - Scope : restriction stricte aux résidences de l'utilisateur.
  * - Injection de sécurité : author = session.user.id garanti.
@@ -20,7 +20,7 @@ export const announcementCrudRoutes = createCrudRoutes({
   createSchema: announcementCreateSchema,
   updateSchema: announcementUpdateSchema,
   access: {
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
     create: [Role.ADMIN, Role.SYNDIC],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
@@ -42,8 +42,8 @@ export const announcementCrudRoutes = createCrudRoutes({
       const residenceIds = await getSyndicResidenceIds(user.id);
       return { residence: { $in: residenceIds } };
     }
-    // 3. RESIDENT : résidences où le résident possède ou occupe un appartement
-    if (user.role === Role.RESIDENT) {
+    // 3. OWNER ou TENANT : résidences où l'utilisateur possède ou occupe un appartement
+    if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const apartmentIds = await getResidentApartmentIds(user.id);
       const residenceIds = await Apartment.find({ _id: { $in: apartmentIds } }).distinct(
         "residence"

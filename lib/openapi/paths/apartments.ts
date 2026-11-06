@@ -8,7 +8,7 @@ export function registerApartmentsPaths() {
     tags: ["Appartements"],
     summary: "Lister les appartements / lots",
     description:
-      "Renvoie la liste des lots d'une résidence. Pour un RESIDENT, renvoie uniquement son ou ses appartements.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+      "Renvoie la liste des lots d'une résidence. Pour un OWNER ou TENANT, renvoie uniquement son ou ses appartements.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT.",
     security: [{ cookieAuth: [] }],
     request: {
       query: z.object({

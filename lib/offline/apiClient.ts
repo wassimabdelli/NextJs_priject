@@ -213,6 +213,13 @@ export async function fetchWithOffline<T>(url: string, options: FetchOptions = {
     retries: 0,
   });
 
+  // Déclencheur Background Sync API progressif si supporté par le navigateur
+  if (typeof window !== "undefined" && "serviceWorker" in navigator && "SyncManager" in window) {
+    navigator.serviceWorker.ready
+      .then((reg: any) => reg.sync?.register("sync-outbox"))
+      .catch(() => {});
+  }
+
   const optimisticResult = createOptimisticResponse(entityType, payload, clientId);
   await updateLocalCacheAfterMutation(entityType, optimisticResult, true, "POST");
 

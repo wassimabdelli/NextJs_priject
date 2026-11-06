@@ -12,3 +12,7 @@ export * from "./Meeting";
 export * from "./Resolution";
 export * from "./Vote";
 export * from "./Document";
+export * from "./JoinRequest";
+export * from "./Election";
+export * from "./ElectionVote";
+export * from "./Reminder";

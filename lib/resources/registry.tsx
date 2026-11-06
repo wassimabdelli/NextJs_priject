@@ -269,12 +269,12 @@ export const apartmentConfig: ResourceConfig<ApartmentDTO> = {
       type: "relation",
       relation: {
         resource: "users",
-        apiPath: "/api/users?role=RESIDENT",
+        apiPath: "/api/users?role=OWNER",
         labelField: "name",
         valueField: "_id",
       },
       helpText:
-        "Compte de connexion du résident : il verra ses charges, paiements et annonces. Laisser vide si le lot n'a pas de compte.",
+        "Compte de connexion du propriétaire : il verra ses charges, paiements et annonces. Laisser vide si le lot n'a pas de compte.",
     },
   ],
 
@@ -728,7 +728,7 @@ export const paymentConfig: ResourceConfig<PaymentDTO> = {
     {
       label: "Reçu PDF",
       href: (item) => `/api/payments/${item._id}/receipt`,
-      roles: ["ADMIN", "SYNDIC", "RESIDENT"],
+      roles: ["ADMIN", "SYNDIC", "OWNER", "TENANT"],
     },
   ],
 };
@@ -1149,6 +1149,14 @@ export const meetingConfig: ResourceConfig<MeetingDTO> = {
   cardSubtitle: (item) =>
     `${item.status} • ${new Date(item.date).toLocaleDateString("fr-FR")} • ${item.location || "Lieu non précisé"}`,
 
+  rowLinks: [
+    {
+      label: "Pack AG (ODJ · Quorum · PV)",
+      href: (item) => `/meetings/${item._id}`,
+      roles: ["ADMIN", "SYNDIC", "OWNER"],
+    },
+  ],
+
   canCreate: (role) => role === Role.ADMIN || role === Role.SYNDIC,
   canEdit: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
   canDelete: (_item, role) => role === Role.ADMIN || role === Role.SYNDIC,
@@ -1483,9 +1491,10 @@ export const userConfig: ResourceConfig<UserDTO> = {
       label: "Rôle dans SyndicPro",
       type: "select",
       required: true,
-      defaultValue: "RESIDENT",
+      defaultValue: "OWNER",
       options: [
-        { label: "Résident / Copropriétaire", value: "RESIDENT" },
+        { label: "Propriétaire", value: "OWNER" },
+        { label: "Locataire", value: "TENANT" },
         { label: "Technicien d'intervention", value: "TECHNICIAN" },
         { label: "Syndic gestionnaire", value: "SYNDIC" },
         { label: "Administrateur système", value: "ADMIN" },
@@ -1517,7 +1526,8 @@ export const userConfig: ResourceConfig<UserDTO> = {
           ADMIN: { label: "Admin", cls: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400" },
           SYNDIC: { label: "Syndic", cls: "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400" },
           TECHNICIAN: { label: "Technicien", cls: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400" },
-          RESIDENT: { label: "Résident", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" },
+          OWNER: { label: "Propriétaire", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" },
+          TENANT: { label: "Locataire", cls: "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400" },
         };
         const b = badges[val] || { label: val, cls: "bg-slate-100 text-slate-700" };
         return (

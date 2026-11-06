@@ -7,7 +7,7 @@ export function registerDashboardPaths() {
     path: "/api/dashboard",
     tags: ["Tableau de bord"],
     summary: "Données consolidées du tableau de bord selon le rôle",
-    description: "Endpoint unique retournant les KPI et graphiques (ADMIN/SYNDIC), la situation comptable et annonces (RESIDENT) ou les interventions de maintenance (TECHNICIAN). Mis en cache localement dans Dexie.\n\n**Rôles autorisés** : Tous.",
+    description: "Endpoint unique retournant les KPI et graphiques (ADMIN/SYNDIC), la situation comptable et annonces (OWNER/TENANT) ou les interventions de maintenance (TECHNICIAN). Mis en cache localement dans Dexie.\n\n**Rôles autorisés** : Tous.",
     security: [{ cookieAuth: [] }],
     responses: {
       200: {

@@ -503,7 +503,7 @@ export function GlobalSearch({ variant }: { variant: "icon" | "field" }) {
                   {recentSearches.length > 0 ? (
                     <div>
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                        <span className="text-xs font-semibold text-slate-500 uppercase dark:text-slate-400">
                           Recherches récentes
                         </span>
                         <button
@@ -591,7 +591,7 @@ export function GlobalSearch({ variant }: { variant: "icon" | "field" }) {
 
                     return (
                       <div key={groupType}>
-                        <div className="mb-1.5 px-2 text-xs font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                        <div className="mb-1.5 px-2 text-xs font-semibold text-slate-500 uppercase dark:text-slate-400">
                           {label}
                         </div>
                         <ul className="space-y-1">

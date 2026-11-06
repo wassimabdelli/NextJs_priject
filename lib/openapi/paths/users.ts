@@ -48,7 +48,7 @@ export function registerUsersPaths() {
     tags: ["Utilisateurs"],
     summary: "Créer un utilisateur avec rôle spécifique",
     description:
-      "Permet de créer un compte avec un rôle choisi. Règle de sécurité : Seul un ADMIN peut créer un utilisateur avec le rôle ADMIN ou SYNDIC. Le SYNDIC peut créer des profils TECHNICIAN ou RESIDENT.\n\n**Rôles autorisés** : ADMIN, SYNDIC.",
+      "Permet de créer un compte avec un rôle choisi. Règle de sécurité : Seul un ADMIN peut créer un utilisateur avec le rôle ADMIN ou SYNDIC. Le SYNDIC peut créer des profils TECHNICIAN, OWNER ou TENANT.\n\n**Rôles autorisés** : ADMIN, SYNDIC.",
     security: [{ cookieAuth: [] }],
     request: {
       body: {

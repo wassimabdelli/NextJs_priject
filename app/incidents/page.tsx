@@ -14,6 +14,10 @@ import {
   UserCheck,
   ArrowRight,
   ShieldAlert,
+  Sparkles,
+  Mic,
+  Square,
+  Lightbulb,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/Card";
@@ -130,6 +134,17 @@ function IncidentsContent() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // État Assistant IA (Gemini Multimodal : Photo + Audio vocal)
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiAction, setAiAction] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<any>(null);
+
   // Modal d'assignation
   const [assigningIncident, setAssigningIncident] = useState<IncidentDTO | null>(null);
   const [selectedTechId, setSelectedTechId] = useState<string>("");
@@ -155,6 +170,108 @@ function IncidentsContent() {
 
   const toggleExpandDescription = (id: string) => {
     setExpandedDescriptions((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const startRecording = async () => {
+    try {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        alert("L'enregistrement audio n'est pas supporté sur ce navigateur.");
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          setAudioBase64(reader.result as string);
+        };
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setAudioDuration(0);
+      timerIntervalRef.current = setInterval(() => {
+        setAudioDuration((prev) => prev + 1);
+      }, 1000);
+    } catch {
+      alert("Impossible d'accéder au microphone. Veuillez vérifier les permissions de votre navigateur.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(timerIntervalRef.current);
+    }
+  };
+
+  const removeAudio = () => {
+    setAudioBase64(null);
+    setAudioDuration(0);
+    if (isRecording) {
+      stopRecording();
+    }
+  };
+
+  const handleAiAnalyze = async () => {
+    const photoToAnalyze = photos[0] || null;
+    if (!photoToAnalyze && !audioBase64 && !title.trim() && !description.trim()) {
+      alert("Veuillez d'abord ajouter une photo, enregistrer une note vocale ou entrer quelques mots pour guider l'IA.");
+      return;
+    }
+
+    try {
+      setIsAiAnalyzing(true);
+      setAiSuggestion(null);
+      setAiAction(null);
+
+      const selResidence = residences.find((r) => r._id === residenceId);
+
+      const res = await fetch("/api/ai/analyze-incident", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photoBase64: photoToAnalyze,
+          audioBase64: audioBase64,
+          context: [title, description].filter(Boolean).join(" — ") || undefined,
+          residenceName: selResidence?.name,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erreur d'analyse");
+
+      const result = json.data;
+      if (result) {
+        if (result.title) setTitle(result.title);
+        if (result.category) setCategory(result.category);
+        if (result.priority) setPriority(result.priority);
+        if (result.description) setDescription(result.description);
+        if (result.suggestedAction) setAiAction(result.suggestedAction);
+        if (result.source === "gemini") {
+          setAiSuggestion("✨ Analysé avec succès par Google Gemini Vision & Audio.");
+        } else {
+          setAiSuggestion("⚠️ Mode Démo local : GEMINI_API_KEY non renseignée dans .env.local. L'analyse visuelle de l'image nécessite votre clé gratuite Google AI Studio.");
+        }
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erreur lors de l'analyse IA");
+    } finally {
+      setIsAiAnalyzing(false);
+    }
   };
 
   const loadData = async () => {
@@ -281,6 +398,9 @@ function IncidentsContent() {
       setTitle("");
       setDescription("");
       setPhotos([]);
+      setAudioBase64(null);
+      setAiSuggestion(null);
+      setAiAction(null);
       resetClientId();
       setIsModalOpen(false);
 
@@ -383,7 +503,7 @@ function IncidentsContent() {
         {/* En-tête */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            <h1 className="sp-title text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
               Incidents & Pannes
             </h1>
             <p className="text-xs text-slate-500 sm:text-sm dark:text-slate-400">
@@ -473,7 +593,7 @@ function IncidentsContent() {
             description={
               isFilterActive
                 ? "Aucune panne ou anomalie ne correspond à votre filtre actuel."
-                : currentUser?.role === Role.RESIDENT
+                : (currentUser?.role === Role.OWNER || currentUser?.role === Role.TENANT)
                 ? "Vous n'avez signalé aucun incident pour le moment."
                 : "Aucun incident enregistré."
             }
@@ -741,7 +861,7 @@ function IncidentsContent() {
                         <Button
                           size="sm"
                           variant="primary"
-                          className="w-full text-xs min-h-[44px] gap-1 bg-indigo-600 hover:bg-indigo-700"
+                          className="min-h-11 w-full gap-1 text-xs"
                           isLoading={isActionLoading === inc._id}
                           onClick={() =>
                             handleAdvanceStatus(inc._id, IncidentStatus.IN_PROGRESS)
@@ -824,10 +944,125 @@ function IncidentsContent() {
         {/* BOTTOM SHEET : FORMULAIRE NOUVEL INCIDENT (OFFLINE READY) */}
         <BottomSheet
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setAiSuggestion(null);
+            setAiAction(null);
+            if (isRecording) stopRecording();
+          }}
           title="Signaler un incident"
-          description="Enregistrez une anomalie même sans connexion, avec photo jointe (max 1 Mo)."
+          description="Enregistrez une anomalie même sans connexion, assisté par l'IA Gemini."
         >
+          {/* ASSISTANT IA MULTIMODAL (PHOTO + VOCAL + CONTEXTE) */}
+          <div className="mb-4 space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/30">
+            <div className="flex items-start gap-2.5">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white">
+                <Sparkles className="size-4" aria-hidden />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Assistant IA — Déclaration assistée
+                  </h4>
+                  <span className="rounded-md bg-sky-600/10 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                    Gemini
+                  </span>
+                </div>
+                <p className="mt-0.5 text-pretty text-xs text-slate-500 dark:text-slate-400">
+                  Prenez une photo ou dictez un message vocal : Gemini catégorise la panne, estime l&apos;urgence et rédige le signalement.
+                </p>
+              </div>
+            </div>
+
+            {/* Contrôles Vocal & Photo & Analyse */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {/* Bouton Enregistrement Vocal */}
+              {!isRecording ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={startRecording}
+                  className="gap-1.5 text-xs min-h-[38px] border-slate-300 dark:border-slate-700"
+                >
+                  <Mic className="h-3.5 w-3.5 text-rose-500" />
+                  <span>{audioBase64 ? "Réenregistrer la voix" : "Dicter une note vocale"}</span>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={stopRecording}
+                  className="gap-1.5 text-xs min-h-[38px] animate-pulse"
+                >
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                  <span>Arrêter l&apos;enregistrement ({audioDuration}s)</span>
+                </Button>
+              )}
+
+              {/* Indicateur note vocale prête */}
+              {audioBase64 && !isRecording && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Note vocale prête</span>
+                  <button
+                    type="button"
+                    onClick={removeAudio}
+                    className="ml-1 text-slate-400 hover:text-rose-600"
+                    title="Supprimer la note vocale"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* Bouton Déclencher Analyse IA */}
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleAiAnalyze}
+                disabled={isAiAnalyzing || isRecording}
+                isLoading={isAiAnalyzing}
+                className="ml-auto min-h-10 gap-1.5 text-xs"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>{isAiAnalyzing ? "Analyse en cours..." : "Pré-remplir avec l'IA"}</span>
+              </Button>
+            </div>
+
+            {/* Retour d'analyse IA & Conseils immédiats */}
+            {aiSuggestion && (
+              <div
+                className={`rounded-xl border p-3 text-xs shadow-sm space-y-1.5 ${
+                  aiSuggestion.startsWith("⚠️")
+                    ? "border-amber-200 bg-amber-50/80 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
+                    : "border-sky-100 bg-white text-sky-900 dark:border-sky-900/40 dark:bg-slate-900/70 dark:text-sky-300"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold">
+                  {aiSuggestion.startsWith("⚠️") ? (
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  )}
+                  <span>{aiSuggestion}</span>
+                </div>
+
+                {aiAction && (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    <Lightbulb className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Consigne de sécurité immédiate :</span>{" "}
+                      <span>{aiAction}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <form onSubmit={handleCreateIncident} className="space-y-4 pt-2">
             {errorMessage && (
               <div className="rounded-xl bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400">
@@ -885,7 +1120,7 @@ function IncidentsContent() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Description détaillée
               </label>
               <textarea
@@ -1053,13 +1288,27 @@ function IncidentsContent() {
                   <span className="inline-block rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-900/50 dark:text-sky-300">
                     {categoryLabel}
                   </span>
+                  {inc.slaDueAt && (
+                    <span
+                      className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${
+                        inc.slaBreached || new Date(inc.slaDueAt).getTime() < Date.now()
+                          ? "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                      }`}
+                    >
+                      SLA {formatFullDate(inc.slaDueAt)}
+                      {inc.slaBreached || new Date(inc.slaDueAt).getTime() < Date.now()
+                        ? " · dépassé"
+                        : ""}
+                    </span>
+                  )}
                 </div>
 
                 {/* Contenu déroulant */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                   {/* Description complète */}
                   <div className="space-y-1.5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <h3 className="text-xs font-bold uppercase text-slate-400">
                       Description complète
                     </h3>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">
@@ -1104,7 +1353,7 @@ function IncidentsContent() {
 
                   {/* Technicien assigné */}
                   <div className="space-y-1.5 rounded-2xl border border-slate-100 p-3 dark:border-slate-800">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <h3 className="text-xs font-bold uppercase text-slate-400">
                       Technicien assigné
                     </h3>
                     {techName ? (
@@ -1142,7 +1391,7 @@ function IncidentsContent() {
                   {/* Photos en grand format */}
                   {inc.photos && inc.photos.length > 0 && (
                     <div className="space-y-2">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      <h3 className="text-xs font-bold uppercase text-slate-400">
                         Photos jointes ({inc.photos.length})
                       </h3>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1167,9 +1416,83 @@ function IncidentsContent() {
                     </div>
                   )}
 
+                  {/* Photos avant / après */}
+                  {((inc.beforePhotos && inc.beforePhotos.length > 0) ||
+                    (inc.afterPhotos && inc.afterPhotos.length > 0)) && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {inc.beforePhotos && inc.beforePhotos.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-bold uppercase text-slate-400">
+                            Avant
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {inc.beforePhotos.map((photoUrl, idx) => (
+                              <div
+                                key={`b-${idx}`}
+                                onClick={() => setFullscreenPhoto(photoUrl)}
+                                className="aspect-video cursor-pointer overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={photoUrl} alt={`Avant ${idx + 1}`} className="h-full w-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {inc.afterPhotos && inc.afterPhotos.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-bold uppercase text-slate-400">
+                            Après
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {inc.afterPhotos.map((photoUrl, idx) => (
+                              <div
+                                key={`a-${idx}`}
+                                onClick={() => setFullscreenPhoto(photoUrl)}
+                                className="aspect-video cursor-pointer overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={photoUrl} alt={`Après ${idx + 1}`} className="h-full w-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Timeline métier */}
+                  {inc.timeline && inc.timeline.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold uppercase text-slate-400">
+                        Timeline
+                      </h3>
+                      <div className="space-y-2 border-l-2 border-sky-200 pl-3 dark:border-sky-900 text-xs">
+                        {[...inc.timeline]
+                          .sort(
+                            (a, b) =>
+                              new Date(a.at).getTime() - new Date(b.at).getTime()
+                          )
+                          .map((ev, idx) => (
+                            <div key={idx}>
+                              <p className="font-semibold text-slate-800 dark:text-slate-200">
+                                {ev.message}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {formatFullDate(ev.at)}
+                                {typeof ev.by === "object" && ev.by?.name
+                                  ? ` · ${ev.by.name}`
+                                  : ""}
+                              </p>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Historique en liste verticale */}
                   <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <h3 className="text-xs font-bold uppercase text-slate-400">
                       Historique du traitement
                     </h3>
                     <div className="space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-800 text-xs">
@@ -1220,7 +1543,7 @@ function IncidentsContent() {
                     <Button
                       size="sm"
                       variant="primary"
-                      className="min-h-[44px] gap-1 bg-indigo-600 hover:bg-indigo-700"
+                      className="min-h-11 gap-1 text-xs"
                       isLoading={isActionLoading === inc._id}
                       onClick={async () => {
                         await handleAdvanceStatus(inc._id, IncidentStatus.IN_PROGRESS);
@@ -1304,7 +1627,7 @@ export default function IncidentsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
+        <div className="flex min-h-dvh items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
         </div>
       }

@@ -8,12 +8,13 @@ import { Payment } from "@/models/Payment";
 import { Expense } from "@/models/Expense";
 import { Incident } from "@/models/Incident";
 import { Announcement } from "@/models/Announcement";
+import { JoinRequest, JoinRequestStatus } from "@/models/JoinRequest";
 
 /**
  * GET /api/dashboard
  * Endpoint unique retournant les métriques et chiffres adaptés selon le rôle connecté :
  * - ADMIN / SYNDIC : KPI (taux recouvrement, trésorerie, incidents ouverts, impayés) + graphiques
- * - RESIDENT : Ce que je dois, dernières annonces, mes incidents
+ * - OWNER / TENANT : Ce que je dois, dernières annonces, mes incidents
  * - TECHNICIAN : Mes interventions (assignées, en cours, résolues)
  */
 export const GET = withAuth(
@@ -143,8 +144,21 @@ export const GET = withAuth(
         { status: "RESOLVED", label: "Résolu", count: statusMap.get(IncidentStatus.RESOLVED) || 0, color: "#10b981" },
       ];
 
+      // Demandes de rattachement en attente
+      const joinReqFilter: Record<string, any> = { status: JoinRequestStatus.PENDING };
+      if (user.role === Role.SYNDIC) {
+        joinReqFilter.residence = { $in: residenceIds };
+      }
+      const pendingJoinRequests = await JoinRequest.find(joinReqFilter)
+        .populate("residence", "name city")
+        .populate("user", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+
       return json({
         role: user.role,
+        pendingJoinRequests,
         kpi: {
           period: currentMonth,
           collectionRate,
@@ -161,9 +175,9 @@ export const GET = withAuth(
     }
 
     // -------------------------------------------------------------
-    // 2. RESIDENT
+    // 2. OWNER / TENANT
     // -------------------------------------------------------------
-    if (user.role === Role.RESIDENT) {
+    if (user.role === Role.OWNER || user.role === Role.TENANT) {
       const aptIds = await getResidentApartmentIds(user.id);
       const resIds = await getResidentResidenceIds(user.id);
 
@@ -207,8 +221,16 @@ export const GET = withAuth(
         status: { $in: [IncidentStatus.REPORTED, IncidentStatus.ASSIGNED, IncidentStatus.IN_PROGRESS] },
       });
 
+      // Dernière demande de rattachement
+      const latestJoinRequest = await JoinRequest.findOne({ user: user.id })
+        .populate("residence", "name city")
+        .sort({ createdAt: -1 })
+        .lean();
+
       return json({
         role: user.role,
+        hasResidence: resIds.length > 0,
+        latestJoinRequest,
         whatIOwe: {
           totalDue,
           unpaidCharges,
@@ -268,5 +290,5 @@ export const GET = withAuth(
 
     return json({ role: user.role, message: "Aucune donnée spécifique pour ce rôle" });
   },
-  { roles: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN] }
+  { roles: [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN] }
 );

@@ -12,7 +12,7 @@ export const meetingCrudRoutes = createCrudRoutes({
   createSchema: meetingCreateSchema,
   updateSchema: meetingUpdateSchema,
   access: {
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT],
+    read: [Role.ADMIN, Role.SYNDIC, Role.OWNER],
     create: [Role.ADMIN, Role.SYNDIC],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
@@ -28,7 +28,7 @@ export const meetingCrudRoutes = createCrudRoutes({
       const resIds = await getSyndicResidenceIds(user.id);
       return { residence: { $in: resIds } };
     }
-    if (user.role === Role.RESIDENT) {
+    if (user.role === Role.OWNER) {
       const resIds = await getResidentResidenceIds(user.id);
       return { residence: { $in: resIds } };
     }

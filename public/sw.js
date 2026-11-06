@@ -7,7 +7,7 @@
  * 3. Stratégies de mise en cache adaptées par type de requête (Network-first, Cache-first, Stale-while-revalidate)
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v4-bento";
 const CACHE_NAME = `syndicpro-${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `syndicpro-static-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `syndicpro-data-${CACHE_VERSION}`;
@@ -85,25 +85,29 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // REGLE 1bis : Authentification (/api/auth/*, /login, /register) et Documentation (/api-docs, /api/openapi) -> TOUJOURS réseau direct, JAMAIS en cache
+  // REGLE 1bis : Auth, docs, HMR, et bundles Next -> réseau direct (évite hydratation HTML≠JS)
   if (
     url.pathname.startsWith("/api/auth/") ||
     url.pathname === "/login" ||
     url.pathname === "/register" ||
     url.pathname.startsWith("/api-docs") ||
-    url.pathname.startsWith("/api/openapi")
+    url.pathname.startsWith("/api/openapi") ||
+    url.pathname.startsWith("/_next/") ||
+    url.pathname.includes("webpack-hmr") ||
+    url.pathname.includes("turbopack") ||
+    url.pathname.includes("hot-update")
   ) {
-    return; // Laisse passer directement au réseau sans interférence du service worker
+    return;
   }
 
-  // REGLE 2 : Assets statiques Next.js (_next/static, polices, images, icônes) -> Cache-first
+  // REGLE 2 : Icônes / polices / images -> Cache-first (pas les chunks JS/CSS Next)
   const isStaticAsset =
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icons/") ||
-    url.pathname.endsWith(".png") ||
-    url.pathname.endsWith(".svg") ||
-    url.pathname.endsWith(".ico") ||
-    url.pathname.endsWith(".woff2");
+    (url.pathname.startsWith("/icons/") ||
+      url.pathname.endsWith(".png") ||
+      url.pathname.endsWith(".svg") ||
+      url.pathname.endsWith(".ico") ||
+      url.pathname.endsWith(".woff2")) &&
+    !url.pathname.includes("hot-update");
 
   if (isStaticAsset) {
     event.respondWith(
@@ -217,6 +221,19 @@ self.addEventListener("fetch", (event) => {
       );
     })
   );
+});
+
+// --- 4. ÉVÉNEMENT SYNC (Background Sync API) ---
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-outbox") {
+    event.waitUntil(
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: "SYNC_OUTBOX_TRIGGER" });
+        });
+      })
+    );
+  }
 });
 
 // Écoute de messages postés depuis les composants clients

@@ -42,7 +42,7 @@ export const GET = withAuth(
       if (!syndicRes.includes(meeting.residence.toString())) {
         throw new HttpError(403, "Vous n'administrez pas cette résidence");
       }
-    } else if (user.role === Role.RESIDENT) {
+    } else if (user.role === Role.OWNER) {
       const resRes = await getResidentResidenceIds(user.id);
       if (!resRes.includes(meeting.residence.toString())) {
         throw new HttpError(403, "Vous ne faites pas partie de cette résidence");
@@ -97,5 +97,5 @@ export const GET = withAuth(
       200
     );
   },
-  { roles: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT] }
+  { roles: [Role.ADMIN, Role.SYNDIC, Role.OWNER] }
 );

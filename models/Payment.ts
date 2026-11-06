@@ -1,20 +1,27 @@
 import mongoose, { Schema, model, type Model, type Types } from "mongoose";
-import { PaymentMethod, values } from "@/types/enums";
+import {
+  PaymentMethod,
+  PaymentValidationStatus,
+  values,
+} from "@/types/enums";
 import { Charge } from "./Charge";
 
 export interface IPayment {
   charge: Types.ObjectId;
   receivedBy?: Types.ObjectId;
+  /** Résident ayant déclaré le paiement (portefeuille) */
+  submittedBy?: Types.ObjectId;
   amount: number;
   paymentDate: Date;
   method: PaymentMethod;
   receiptNumber: string;
-  /**
-   * Identifiant généré côté client (uuid) : permet de rejouer une requête
-   * depuis la file offline sans créer de doublon (idempotence).
-   */
+  /** Preuve (Flip / D17 / virement) */
+  proofUrl?: string;
+  validationStatus: PaymentValidationStatus;
+  validatedBy?: Types.ObjectId;
+  validatedAt?: Date;
+  rejectionReason?: string;
   clientId?: string;
-  /** Date de réception par le serveur (utile pour tracer les synchros offline). */
   syncedAt?: Date;
 }
 
@@ -24,11 +31,20 @@ const PaymentSchema = new Schema<IPayment, PaymentModel>(
   {
     charge: { type: Schema.Types.ObjectId, ref: "Charge", required: true },
     receivedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
     amount: { type: Number, required: true, min: 0.01 },
     paymentDate: { type: Date, default: () => new Date() },
     method: { type: String, enum: values(PaymentMethod), required: true },
     receiptNumber: { type: String, required: true, unique: true },
-    // sparse : l'unicité ne s'applique qu'aux documents qui ont un clientId
+    proofUrl: { type: String },
+    validationStatus: {
+      type: String,
+      enum: values(PaymentValidationStatus),
+      default: PaymentValidationStatus.VALIDATED,
+    },
+    validatedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    validatedAt: { type: Date },
+    rejectionReason: { type: String },
     clientId: { type: String, unique: true, sparse: true },
     syncedAt: { type: Date },
   },
@@ -36,8 +52,8 @@ const PaymentSchema = new Schema<IPayment, PaymentModel>(
 );
 
 PaymentSchema.index({ charge: 1 });
+PaymentSchema.index({ validationStatus: 1, createdAt: -1 });
 
-/** Génère un numéro de reçu lisible si absent : REC-AAAAMMJJ-XXXXXX */
 PaymentSchema.pre("validate", function () {
   if (!this.receiptNumber) {
     const d = new Date();
@@ -47,14 +63,21 @@ PaymentSchema.pre("validate", function () {
   }
 });
 
-/**
- * Hook post-save : met à jour la charge liée.
- * On RECALCULE paidAmount comme la somme de tous les paiements de la charge
- * (au lieu d'incrémenter) : le résultat reste juste même si le hook est rejoué.
- */
+/** Seuls les paiements VALIDATED comptent dans paidAmount. */
 PaymentSchema.post("save", async function (doc) {
   const [agg] = await Payment.aggregate<{ total: number }>([
-    { $match: { charge: doc.charge } },
+    {
+      $match: {
+        charge: doc.charge,
+        // Rétrocompat : anciens paiements sans champ = validés
+        validationStatus: {
+          $nin: [
+            PaymentValidationStatus.PENDING_VALIDATION,
+            PaymentValidationStatus.REJECTED,
+          ],
+        },
+      },
+    },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
   const charge = await Charge.findById(doc.charge);

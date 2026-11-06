@@ -8,7 +8,7 @@ export function registerChargesPaths() {
     tags: ["Charges"],
     summary: "Lister les appels de charges",
     description:
-      "Récupère les appels de charges avec calcul dynamique du statut (OVERDUE si échéance dépassée) et reste à payer. Un RESIDENT ne voit que les charges de ses appartements.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+      "Récupère les appels de charges avec calcul dynamique du statut (OVERDUE si échéance dépassée) et reste à payer. Un OWNER ou TENANT ne voit que les charges de ses appartements.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT.",
     security: [{ cookieAuth: [] }],
     request: {
       query: z.object({

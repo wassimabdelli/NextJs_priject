@@ -7,7 +7,7 @@ export const userCreateSchema = z.object({
   /** Mot de passe en clair : il est hashé côté serveur, jamais stocké tel quel. */
   password: z.string().min(8, "Le mot de passe doit comporter au moins 8 caractères"),
   phone: z.string().trim().optional(),
-  role: z.enum(values(Role)).default(Role.RESIDENT),
+  role: z.enum(values(Role)).default(Role.OWNER),
   isActive: z.boolean().optional().default(true),
 });
 

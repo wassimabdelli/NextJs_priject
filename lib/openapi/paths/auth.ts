@@ -6,12 +6,12 @@ export function registerAuthPaths() {
     method: "post",
     path: "/api/auth/register",
     tags: ["Authentification"],
-    summary: "Inscription publique d'un nouveau résident",
+    summary: "Inscription publique d'un nouvel utilisateur (propriétaire ou locataire)",
     description:
-      "Permet à un nouvel occupant ou copropriétaire de créer son compte. Le rôle créé est STRICTEMENT et TOUJOURS forcé à 'RESIDENT' (protection anti-élévation de privilèges). Aucun cookie de session requis.\n\n**Rôles autorisés** : Public (aucun).",
+      "Permet à un nouvel occupant ou copropriétaire de créer son compte. Le rôle créé doit être 'OWNER' ou 'TENANT' (protection anti-élévation de privilèges : ADMIN et SYNDIC interdits). Aucun cookie de session requis.\n\n**Rôles autorisés** : Public (aucun).",
     request: {
       body: {
-        description: "Informations d'inscription (nom, email, mot de passe >= 8 caractères, confirmation)",
+        description: "Informations d'inscription (nom, email, mot de passe >= 8 caractères, confirmation, rôle)",
         content: {
           "application/json": {
             schema: RegisterInputSchema,
@@ -22,14 +22,14 @@ export function registerAuthPaths() {
     },
     responses: {
       201: {
-        description: "Compte résident créé avec succès",
+        description: "Compte créé avec succès",
         content: {
           "application/json": {
             schema: z.object({
               id: z.string().openapi({ description: "Identifiant MongoDB unique de l'utilisateur" }),
               name: z.string(),
               email: z.string(),
-              role: z.literal("RESIDENT"),
+              role: z.enum(["OWNER", "TENANT"]),
             }),
           },
         },

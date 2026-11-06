@@ -4,8 +4,11 @@ import { withAuth, getSyndicResidenceIds, type AuthUser } from "@/lib/auth-guard
 import { Incident } from "@/models/Incident";
 import { User } from "@/models/User";
 import { incidentAssignSchema } from "@/lib/validations/incident";
-import { Role, IncidentStatus } from "@/types/enums";
+import { Role, IncidentStatus, IncidentTimelineType } from "@/types/enums";
 import { canTransition } from "@/lib/incidents/workflow";
+import { appendIncidentTimeline } from "@/lib/incidents/timeline";
+import { notifyUser } from "@/lib/notifications/notify";
+import { ReminderType } from "@/types/enums";
 
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
@@ -60,6 +63,22 @@ export const PATCH = withAuth(
 
     incident.assignedTo = technician._id;
     await incident.save();
+
+    await appendIncidentTimeline(incident._id, {
+      type: IncidentTimelineType.ASSIGNED,
+      message: `Assigné à ${technician.name}`,
+      by: user.id,
+      meta: { assignedTo: String(technician._id) },
+    });
+
+    await notifyUser({
+      userId: String(technician._id),
+      type: ReminderType.INCIDENT_STATUS,
+      title: "Nouvel incident assigné",
+      body: incident.title,
+      dedupeKey: `incident-assign:${incident._id}:${technician._id}`,
+      meta: { incidentId: String(incident._id) },
+    });
 
     await incident.populate([
       { path: "residence", select: "name city" },

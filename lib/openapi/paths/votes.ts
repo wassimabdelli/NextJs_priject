@@ -28,7 +28,7 @@ export function registerVotesPaths() {
     path: "/api/votes",
     tags: ["Votes"],
     summary: "Exprimer un vote pour un lot",
-    description: "Enregistre un vote pondéré par les tantièmes du lot. Le vote est rejeté si l'AG n'est pas ouverte (OPEN) ou si le lot a déjà voté (409).\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+    description: "Enregistre un vote pondéré par les tantièmes du lot. Le vote est rejeté si l'AG n'est pas ouverte (OPEN) ou si le lot a déjà voté (409).\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER.",
     security: [{ cookieAuth: [] }],
     request: {
       body: { content: { "application/json": { schema: VoteCreateSchema } } },

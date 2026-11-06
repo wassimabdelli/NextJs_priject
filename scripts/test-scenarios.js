@@ -61,10 +61,10 @@ async function runTests() {
       role: "ADMIN", // Tentative d'élévation de privilège
     }),
   });
-  const registerData = await registerRes.json();
+  const registerData = await registerRes.json().catch(() => ({}));
   assert(
-    registerRes.status === 201 && registerData.role === "RESIDENT",
-    `Rôle créé forcé à RESIDENT (reçu: ${registerData.role}, statut: ${registerRes.status})`
+    registerRes.status === 400 || (registerRes.status === 201 && registerData.role === "OWNER"),
+    `Élévation de privilège bloquée ou rôle sécurisé (reçu: ${registerData.role || registerData.error}, statut: ${registerRes.status})`
   );
 
   // Tentative doublon email -> doit renvoyer 409
@@ -127,14 +127,14 @@ async function runTests() {
   assert(techAuth.session?.user?.role === "TECHNICIAN", `TECHNICIAN connecté avec succès (id: ${techAuth.session?.user?.id})`);
 
   const residentAuth = await loginAs("resident@syndicpro.tn", "Resident123!");
-  assert(residentAuth.session?.user?.role === "RESIDENT", `RESIDENT connecté avec succès (id: ${residentAuth.session?.user?.id})`);
+  assert(residentAuth.session?.user?.role === "OWNER", `OWNER connecté avec succès (id: ${residentAuth.session?.user?.id})`);
 
   // -------------------------------------------------------------
-  // TEST 5 : Contrôle d'accès RESIDENT sur /expenses et /api/expenses
+  // TEST 5 : Contrôle d'accès OWNER sur /expenses et /api/expenses
   // -------------------------------------------------------------
-  console.log("\n--- TEST 5 : Contrôle d'accès RESIDENT (/expenses & /api/expenses) ---");
+  console.log("\n--- TEST 5 : Contrôle d'accès OWNER (/expenses & /api/expenses) ---");
   
-  // Page /expenses -> Proxy doit rediriger le RESIDENT vers /forbidden
+  // Page /expenses -> Proxy doit rediriger le OWNER vers /forbidden
   const expPageRes = await fetch(`${BASE_URL}/expenses`, {
     headers: { Cookie: residentAuth.cookies },
     redirect: "manual",
@@ -142,7 +142,7 @@ async function runTests() {
   const expPageRedirect = expPageRes.headers.get("location") || "";
   assert(
     expPageRedirect.includes("/forbidden"),
-    `Page /expenses redirigée vers /forbidden pour le RESIDENT (location: ${expPageRedirect})`
+    `Page /expenses redirigée vers /forbidden pour le OWNER (location: ${expPageRedirect})`
   );
 
   // Route API /api/expenses -> API Guard doit renvoyer HTTP 403 JSON
@@ -151,7 +151,7 @@ async function runTests() {
   });
   assert(
     expApiRes.status === 403,
-    `Route /api/expenses interdite au RESIDENT avec code 403 (statut: ${expApiRes.status})`
+    `Route /api/expenses interdite au OWNER avec code 403 (statut: ${expApiRes.status})`
   );
 
   // En revanche, ADMIN et SYNDIC doivent pouvoir y accéder
@@ -177,16 +177,16 @@ async function runTests() {
   );
 
   // -------------------------------------------------------------
-  // TEST 7 : Filtrage RESIDENT (ne voit que ses charges)
+  // TEST 7 : Filtrage OWNER (ne voit que ses charges)
   // -------------------------------------------------------------
-  console.log("\n--- TEST 7 : Filtrage propriétaire RESIDENT (charges & paiements) ---");
+  console.log("\n--- TEST 7 : Filtrage propriétaire OWNER (charges & paiements) ---");
   const residentChargesRes = await fetch(`${BASE_URL}/api/charges`, {
     headers: { Cookie: residentAuth.cookies },
   });
   const residentCharges = await residentChargesRes.json();
   assert(
     residentChargesRes.status === 200 && Array.isArray(residentCharges),
-    `RESIDENT accède à ses charges de manière sécurisée (${residentCharges.length} charges trouvées pour son appartement)`
+    `OWNER accède à ses charges de manière sécurisée (${residentCharges.length} charges trouvées pour son appartement)`
   );
 
   // -------------------------------------------------------------

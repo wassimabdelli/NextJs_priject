@@ -8,7 +8,7 @@ export function registerResidencesPaths() {
     tags: ["Résidences"],
     summary: "Lister les résidences",
     description:
-      "Renvoie la liste des résidences. Pour un SYNDIC, retourne les résidences sous sa gestion. Pour un RESIDENT, renvoie sa résidence de rattachement. L'option withStats=1 calcule le taux de recouvrement, le solde financier et le nombre d'incidents ouverts.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+      "Renvoie la liste des résidences. Pour un SYNDIC, retourne les résidences sous sa gestion. Pour un OWNER ou TENANT, renvoie sa résidence de rattachement. L'option withStats=1 calcule le taux de recouvrement, le solde financier et le nombre d'incidents ouverts.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER, TENANT.",
     security: [{ cookieAuth: [] }],
     request: {
       query: z.object({

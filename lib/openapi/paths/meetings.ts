@@ -7,7 +7,7 @@ export function registerMeetingsPaths() {
     path: "/api/meetings",
     tags: ["Assemblées Générales"],
     summary: "Lister les assemblées générales",
-    description: "Récupère les assemblées générales selon le rôle et les résidences autorisées.\n\n**Rôles autorisés** : ADMIN, SYNDIC, RESIDENT.",
+    description: "Récupère les assemblées générales selon le rôle et les résidences autorisées.\n\n**Rôles autorisés** : ADMIN, SYNDIC, OWNER.",
     security: [{ cookieAuth: [] }],
     responses: {
       200: {

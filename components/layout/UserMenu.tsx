@@ -137,7 +137,7 @@ export function UserMenu({ initialUser, compact = false }: UserMenuProps) {
   }
 
   return (
-    <div className="sp-card flex flex-col gap-3 rounded-[1.5rem] border border-slate-200/80 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900/80">
+    <div className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/50">
       <Link
         href="/profile"
         className="group -m-1 flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"

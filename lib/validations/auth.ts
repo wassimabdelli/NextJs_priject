@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Role } from "@/types/enums";
 
 /**
  * Schéma de validation pour la connexion.
@@ -18,7 +19,7 @@ export const loginSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 
 /**
- * Schéma de validation pour l'inscription publique d'un résident.
+ * Schéma de validation pour l'inscription publique d'un propriétaire ou locataire.
  * Exige au moins 8 caractères, 1 lettre et 1 chiffre.
  */
 export const registerSchema = z
@@ -39,6 +40,7 @@ export const registerSchema = z
       .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre"),
     confirmPassword: z.string(),
     phone: z.string().trim().optional(),
+    role: z.enum([Role.OWNER, Role.TENANT]).default(Role.OWNER),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",

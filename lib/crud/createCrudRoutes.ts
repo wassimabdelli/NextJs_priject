@@ -103,7 +103,7 @@ async function extractId(context?: any): Promise<string | null> {
  * Produit { list, create, getOne, update, remove } sécurisés et typés.
  */
 export function createCrudRoutes<T = any>(config: CrudRouteConfig<T>) {
-  const allRoles = [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN];
+  const allRoles = [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN];
   const readRoles = config.access.read || allRoles;
   const createRoles = config.access.create || [Role.ADMIN, Role.SYNDIC];
   const updateRoles = config.access.update || [Role.ADMIN, Role.SYNDIC];

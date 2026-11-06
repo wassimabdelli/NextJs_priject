@@ -75,10 +75,20 @@ export interface IncidentDTO {
   description: string;
   category: IncidentCategory;
   photos: string[];
+  beforePhotos?: string[];
+  afterPhotos?: string[];
   priority: Priority;
   status: IncidentStatus;
   reportedAt: string;
   resolvedAt?: string;
+  slaDueAt?: string;
+  slaBreached?: boolean;
+  timeline?: Array<{
+    at: string;
+    type: string;
+    message: string;
+    by?: { _id: string; name?: string } | string;
+  }>;
   createdOffline: boolean;
   clientId?: string;
   /** Côté client uniquement : incident encore dans la file d'attente */
@@ -149,7 +159,7 @@ export interface UserDTO {
   name: string;
   email: string;
   phone?: string;
-  role: "ADMIN" | "SYNDIC" | "RESIDENT" | "TECHNICIAN";
+  role: "ADMIN" | "SYNDIC" | "OWNER" | "TENANT" | "TECHNICIAN";
   isActive: boolean;
   createdAt?: string;
 }

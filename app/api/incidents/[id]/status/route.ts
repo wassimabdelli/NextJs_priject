@@ -3,8 +3,17 @@ import { HttpError, isValidObjectId, json, parseBody } from "@/lib/api";
 import { withAuth, getSyndicResidenceIds, type AuthUser } from "@/lib/auth-guard";
 import { Incident } from "@/models/Incident";
 import { incidentStatusSchema } from "@/lib/validations/incident";
-import { Role, IncidentStatus } from "@/types/enums";
+import {
+  Role,
+  IncidentStatus,
+  IncidentTimelineType,
+  ReminderType,
+  incidentStatusLabel,
+} from "@/types/enums";
 import { canTransition } from "@/lib/incidents/workflow";
+import { appendIncidentTimeline } from "@/lib/incidents/timeline";
+import { isSlaBreached } from "@/lib/incidents/sla";
+import { notifyUser } from "@/lib/notifications/notify";
 
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
@@ -58,6 +67,7 @@ export const PATCH = withAuth(
       );
     }
 
+    const previous = incident.status;
     incident.status = targetStatus;
 
     // Règle métier : resolvedAt posé à RESOLVED
@@ -67,7 +77,42 @@ export const PATCH = withAuth(
       incident.resolvedAt = undefined;
     }
 
+    if (
+      targetStatus !== IncidentStatus.RESOLVED &&
+      isSlaBreached(incident.slaDueAt) &&
+      !incident.slaBreached
+    ) {
+      incident.slaBreached = true;
+      incident.timeline = [
+        ...(incident.timeline || []),
+        {
+          at: new Date(),
+          by: user.id as never,
+          type: IncidentTimelineType.SLA_BREACH,
+          message: "SLA dépassé",
+        },
+      ];
+    }
+
     await incident.save();
+
+    await appendIncidentTimeline(incident._id, {
+      type: IncidentTimelineType.STATUS,
+      message: `Statut : ${incidentStatusLabel[previous]} → ${incidentStatusLabel[targetStatus]}`,
+      by: user.id,
+      meta: { from: previous, to: targetStatus },
+    });
+
+    if (incident.reportedBy) {
+      await notifyUser({
+        userId: String(incident.reportedBy),
+        type: ReminderType.INCIDENT_STATUS,
+        title: "Mise à jour de votre incident",
+        body: `"${incident.title}" est maintenant : ${incidentStatusLabel[targetStatus]}`,
+        dedupeKey: `incident-status:${incident._id}:${targetStatus}`,
+        meta: { incidentId: String(incident._id) },
+      });
+    }
 
     await incident.populate([
       { path: "residence", select: "name city" },

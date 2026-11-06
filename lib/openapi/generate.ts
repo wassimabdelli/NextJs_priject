@@ -33,7 +33,8 @@ export function getOpenApiDocument() {
         "- **ADMIN** : Accès complet à l'ensemble des ressources.\n" +
         "- **SYNDIC** : Gestion des résidences, appartements, charges, règlements, dépenses et techniciens de ses copropriétés.\n" +
         "- **TECHNICIAN** : Consultation et mise à jour de statut des incidents assignés.\n" +
-        "- **RESIDENT** : Consultation de ses charges, paiement en ligne, déclaration d'incidents et lecture des annonces.",
+        "- **OWNER** : Consultation de ses charges, paiement en ligne, vote aux AG, documents, résolutions, déclaration d'incidents et lecture des annonces.\n" +
+        "- **TENANT** : Consultation de ses charges, paiement en ligne, déclaration d'incidents et lecture des annonces (sans droit de vote ni accès aux AG).",
       contact: {
         name: "Support Technique SyndicPro",
         email: "contact@syndicpro.tn",

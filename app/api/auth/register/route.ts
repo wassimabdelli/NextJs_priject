@@ -8,13 +8,17 @@ import { Role } from "@/types/enums";
 /**
  * POST /api/auth/register
  * Inscription publique d'un utilisateur.
- * Règle de sécurité stricte : Le rôle créé est STRICTEMENT et TOUJOURS Role.RESIDENT.
- * Tout champ "role" transmis par le client est sciemment ignoré (protection anti-élévation de privilèges).
+ * Règle de sécurité : Seuls les rôles OWNER et TENANT sont autorisés.
+ * Les rôles ADMIN et SYNDIC sont strictement interdits.
  */
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const data = await parseBody(req, registerSchema);
     const normalizedEmail = data.email.toLowerCase().trim();
+
+    if (data.role !== Role.OWNER && data.role !== Role.TENANT) {
+      throw new HttpError(400, "Seuls les rôles Propriétaire (OWNER) et Locataire (TENANT) sont autorisés");
+    }
 
     const existing = await User.findOne({ email: normalizedEmail }).lean();
     if (existing) {
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest) {
         email: normalizedEmail,
         passwordHash,
         phone: data.phone,
-        role: Role.RESIDENT, // Toujours RESIDENT
+        role: data.role,
         isActive: true,
       });
 
