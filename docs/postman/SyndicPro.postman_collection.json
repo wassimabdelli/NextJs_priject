@@ -1,0 +1,1288 @@
+{
+  "info": {
+    "_postman_id": "syndicpro-api-collection-v1",
+    "name": "SyndicPro API",
+    "description": "Collection Postman exhaustive pour tester l'API SyndicPro avec authentification Auth.js (v5) par cookie, gestion des rôles, et scénarios de sécurité.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - Auth",
+      "description": "Flux d'authentification automatisé avec gestion des tokens CSRF et cookies de session.",
+      "item": [
+        {
+          "name": "1. Récupérer le CSRF Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var data = pm.response.json();",
+                  "pm.test(\"CSRF Token extrait avec succès\", function () {",
+                  "    pm.expect(data.csrfToken).to.be.a('string');",
+                  "    pm.environment.set(\"csrfToken\", data.csrfToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/csrf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "csrf"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Se connecter en ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Connexion ADMIN réussie\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{adminEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/callback/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "callback",
+                "credentials"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Se connecter en SYNDIC",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Connexion SYNDIC réussie\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{syndicEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{syndicPassword}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/callback/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "callback",
+                "credentials"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Se connecter en TECHNICIAN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Connexion TECHNICIAN réussie\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{techEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{techPassword}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/callback/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "callback",
+                "credentials"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Se connecter en RESIDENT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Connexion RESIDENT réussie\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{residentEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{residentPassword}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/callback/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "callback",
+                "credentials"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Vérifier la session active",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Session active avec informations de rôle\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.user).to.be.an('object');",
+                  "    pm.expect(data.user.role).to.be.oneOf(['ADMIN', 'SYNDIC', 'TECHNICIAN', 'RESIDENT']);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "session"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Inscription publique d'un Résident",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Compte résident créé avec statut 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.role).to.eql('RESIDENT');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nouveau Copropriétaire\",\n  \"email\": \"nouveau.resident@syndicpro.tn\",\n  \"password\": \"Password123!\",\n  \"confirmPassword\": \"Password123!\",\n  \"phone\": \"98 123 456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Utilisateurs",
+      "item": [
+        {
+          "name": "Lister les utilisateurs (ADMIN / SYNDIC)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Créer un technicien (ADMIN / SYNDIC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nouveau Technicien Ascenseur\",\n  \"email\": \"tech2@syndicpro.tn\",\n  \"password\": \"TechSecure123!\",\n  \"phone\": \"22 111 333\",\n  \"role\": \"TECHNICIAN\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Résidences",
+      "item": [
+        {
+          "name": "Lister les résidences avec statistiques",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    if (list.length > 0) {",
+                  "        pm.environment.set(\"residenceId\", list[0]._id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/residences?withStats=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "residences"
+              ],
+              "query": [
+                {
+                  "key": "withStats",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Créer une résidence (ADMIN / SYNDIC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Résidence Les Oliviers\",\n  \"address\": \"25 Avenue Habib Bourguiba\",\n  \"city\": \"Ariana\",\n  \"floors\": 4,\n  \"totalApartments\": 8\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/residences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "residences"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Appartements",
+      "item": [
+        {
+          "name": "Lister les appartements d'une résidence",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    if (list.length > 0) {",
+                  "        pm.environment.set(\"apartmentId\", list[0]._id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/apartments?residence={{residenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "apartments"
+              ],
+              "query": [
+                {
+                  "key": "residence",
+                  "value": "{{residenceId}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Charges",
+      "item": [
+        {
+          "name": "Lister les charges",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    if (list.length > 0) {",
+                  "        pm.environment.set(\"chargeId\", list[0]._id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charges",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "charges"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Générer les charges du mois (ADMIN / SYNDIC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residenceId\": \"{{residenceId}}\",\n  \"period\": \"2026-11\",\n  \"totalBudget\": 3000,\n  \"dueDate\": \"2026-11-15\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/charges/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "charges",
+                "generate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Paiements",
+      "item": [
+        {
+          "name": "Lister les paiements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enregistrer un paiement (Idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"charge\": \"{{chargeId}}\",\n  \"amount\": 50,\n  \"method\": \"BANK_TRANSFER\",\n  \"clientId\": \"postman-payment-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Dépenses",
+      "item": [
+        {
+          "name": "Lister les dépenses (ADMIN / SYNDIC)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Incidents",
+      "item": [
+        {
+          "name": "Lister les incidents",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    if (list.length > 0) {",
+                  "        pm.environment.set(\"incidentId\", list[0]._id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "incidents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mettre à jour le statut d'un incident (TECHNICIAN / SYNDIC)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PROGRESS\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/incidents/{{incidentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "incidents",
+                "{{incidentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assigner un technicien à un incident (ADMIN / SYNDIC)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignedTo\": \"{{technicianId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/incidents/{{incidentId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "incidents",
+                "{{incidentId}}",
+                "assign"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Workflow strict : Avancer le statut (ASSIGNED -> IN_PROGRESS -> RESOLVED)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PROGRESS\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/incidents/{{incidentId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "incidents",
+                "{{incidentId}}",
+                "status"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Annonces",
+      "item": [
+        {
+          "name": "Lister les annonces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/announcements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "announcements"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Tests de Sécurité & Idempotence",
+      "description": "Tests de vérification des règles de sécurité (401, 403, anti-escalade, idempotence).",
+      "item": [
+        {
+          "name": "Sécurité 1 : Requête sans cookie -> 401 Unauthorized",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Accès sans session rejeté avec HTTP 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.error).to.include('Authentification requise');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sécurité 2 : Inscription avec 'role: ADMIN' -> Rôle forcé à RESIDENT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Compte créé avec rôle forcé à RESIDENT (201)\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.role).to.eql('RESIDENT');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Attaquant Escalate\",\n  \"email\": \"escalate.test@syndicpro.tn\",\n  \"password\": \"Attaque123!\",\n  \"confirmPassword\": \"Attaque123!\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Idempotence 1 : Création initiale de l'incident avec clientId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Incident initial créé (code 201 ou 200)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residence\": \"{{residenceId}}\",\n  \"title\": \"Fuite radiateur hall\",\n  \"description\": \"Signalement avec clientId unique pour test d'idempotence\",\n  \"category\": \"PLUMBING\",\n  \"priority\": \"MEDIUM\",\n  \"clientId\": \"{{testClientId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "incidents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Idempotence 2 : Deuxième envoi avec le MÊME clientId -> Pas de doublon (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Idempotence confirmée : document existant renvoyé avec statut 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.clientId).to.eql(pm.environment.get('testClientId'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residence\": \"{{residenceId}}\",\n  \"title\": \"Fuite radiateur hall (rejeu)\",\n  \"description\": \"Deuxième tentative réseau avec le même clientId\",\n  \"category\": \"PLUMBING\",\n  \"priority\": \"MEDIUM\",\n  \"clientId\": \"{{testClientId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "incidents"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Résidents",
+      "item": [
+        {
+          "name": "Lister les résidents (ADMIN / SYNDIC)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/residents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "residents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Créer / Assigner un résident à un lot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartment\": \"{{apartmentId}}\",\n  \"user\": \"{{residentUserId}}\",\n  \"type\": \"TENANT\",\n  \"leaseStartDate\": \"2026-01-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/residents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "residents"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Gouvernance & Assemblées Générales",
+      "item": [
+        {
+          "name": "Lister les assemblées générales",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "var list = res.data || res;",
+                  "if (list && list.length > 0) {",
+                  "  pm.environment.set('meetingId', list[0]._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "meetings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Créer une assemblée générale (ADMIN / SYNDIC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residence\": \"{{residenceId}}\",\n  \"title\": \"AG Ordinaire 2026\",\n  \"date\": \"2026-11-20T18:00:00.000Z\",\n  \"location\": \"Salle polyvalente / Visioconférence\",\n  \"agenda\": \"1. Approbation des comptes\\n2. Quitus au syndic\\n3. Travaux ravalement\",\n  \"status\": \"OPEN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "meetings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Lister les résolutions d'AG",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "var list = res.data || res;",
+                  "if (list && list.length > 0) {",
+                  "  pm.environment.set('resolutionId', list[0]._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resolutions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resolutions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Créer une résolution soumise au vote (ADMIN / SYNDIC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meeting\": \"{{meetingId}}\",\n  \"title\": \"Résolution 1 : Approbation des comptes 2025\",\n  \"description\": \"Approbation du budget et des comptes présentés par le syndic.\",\n  \"requiredMajority\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resolutions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resolutions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Consulter les résultats pondérés et le quorum de la résolution",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resolutions/{{resolutionId}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resolutions",
+                "{{resolutionId}}",
+                "results"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Exprimer un vote pour un lot (RESIDENT / Poids tantièmes auto)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolution\": \"{{resolutionId}}\",\n  \"apartment\": \"{{apartmentId}}\",\n  \"choice\": \"FOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/votes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "votes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Lister les votes exprimés",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/votes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "votes"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Documents & Téléversement",
+      "item": [
+        {
+          "name": "Lister les documents de la copropriété",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enregistrer une fiche document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"residence\": \"{{residenceId}}\",\n  \"title\": \"Procès-Verbal AG 2026\",\n  \"type\": \"MINUTES\",\n  \"fileUrl\": \"/uploads/pv-ag-2026.pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Téléverser un fichier (PDF ou Image, max 5 Mo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"facture-test.png\",\n  \"mimeType\": \"image/png\",\n  \"base64\": \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documents",
+                "upload"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Tableau de bord consolidé",
+      "item": [
+        {
+          "name": "Consulter le tableau de bord (par rôle, compatible hors-ligne)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

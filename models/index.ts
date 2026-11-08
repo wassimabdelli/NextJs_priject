@@ -1,0 +1,20 @@
+// Barrel export pour enregistrer tous les modèles Mongoose
+export * from "./User";
+export * from "./Residence";
+export * from "./Apartment";
+export * from "./Resident";
+export * from "./Charge";
+export * from "./Payment";
+export * from "./Expense";
+export * from "./Incident";
+export * from "./IncidentHistory";
+export * from "./IncidentComment";
+export * from "./Announcement";
+export { default as AnnouncementRead } from "./AnnouncementRead";
+export * from "./AIConversation";
+export * from "./Notification";
+export * from "./AnnouncementHistory";
+export * from "./Meeting";
+export * from "./Resolution";
+export * from "./Vote";
+export * from "./Document";

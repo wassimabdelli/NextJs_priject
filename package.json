@@ -1,0 +1,48 @@
+{
+  "name": "syndicpro",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "node --experimental-test-module-mocks --conditions=react-server --import tsx --test tests/incident-workflow.test.ts tests/incident-permissions.test.ts tests/incident-create-route.test.ts tests/incident-duplicate-candidates.test.ts tests/incident-duplicate-route.test.ts tests/announcement-visibility.test.ts tests/announcement-read-stats.test.ts tests/announcement-cron.test.ts tests/permissions.test.ts tests/redact.test.ts tests/ai-features.test.ts tests/ai-image-fallback.test.ts tests/ai-triage-route.test.ts tests/ai-intelligence-analysis.test.ts tests/ai-intelligence-api.test.ts tests/ai-intelligence-drafts.test.ts tests/ai-intelligence-effectiveness.test.ts tests/ai-briefing.test.ts tests/ai-ask.test.ts tests/ai-chat.test.ts tests/ai-incident-reply.test.ts tests/ai-announcement-context.test.ts tests/ai-announcement-generator-context.test.ts tests/ai-embedding-budget.test.ts tests/resident-lot-workflow.test.ts tests/user-residence-assignment.test.ts tests/resident-residence-access.test.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "validate:openapi": "tsx scripts/validate-openapi.ts"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@google/genai": "^2.32.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@xenova/transformers": "^2.17.2",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "dexie": "^4.4.6",
+    "geist": "^1.8.2",
+    "lucide-react": "^1.60.0",
+    "mongoose": "^9.11.2",
+    "next": "16.4.2",
+    "next-auth": "^5.0.0-beta.32",
+    "pdf-lib": "^1.17.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1",
+    "server-only": "^0.0.1",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.0.0",
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

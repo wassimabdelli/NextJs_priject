@@ -1,0 +1,296 @@
+{
+  "items": [
+    {
+      "title": "Fuite sous l'évier de la cuisine",
+      "description": "De l'eau s'échappe du siphon dès que le robinet coule. Le meuble commence à être humide.",
+      "category": "PLUMBING",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Canalisation bouchée dans la salle de bain",
+      "description": "L'eau de la douche s'évacue très lentement et remonte parfois dans le lavabo.",
+      "category": "PLUMBING",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Infiltration au plafond après la pluie",
+      "description": "Une tache humide s'agrandit dans la chambre près de la fenêtre depuis les fortes pluies.",
+      "category": "PLUMBING",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Robinet d'arrêt qui goutte",
+      "description": "Le robinet d'arrivée d'eau du logement goutte continuellement malgré sa fermeture.",
+      "category": "PLUMBING",
+      "priority": "LOW"
+    },
+    {
+      "title": "Forte fuite dans la cave commune",
+      "description": "Un tuyau a cédé près du compteur et l'eau envahit rapidement le local technique.",
+      "category": "PLUMBING",
+      "priority": "URGENT"
+    },
+    {
+      "title": "Éclairage en panne dans le couloir",
+      "description": "Les plafonniers du deuxième étage ne s'allument plus depuis hier soir.",
+      "category": "ELECTRICITY",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Prise électrique qui crépite",
+      "description": "Une prise du hall fait des étincelles et dégage une légère odeur de brûlé.",
+      "category": "ELECTRICITY",
+      "priority": "URGENT"
+    },
+    {
+      "title": "Interphone sans alimentation",
+      "description": "Le tableau de l'interphone est éteint et aucun résident ne peut ouvrir depuis l'entrée.",
+      "category": "ELECTRICITY",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Détecteur de présence défectueux",
+      "description": "La lumière de l'escalier reste allumée en permanence malgré l'absence de passage.",
+      "category": "ELECTRICITY",
+      "priority": "LOW"
+    },
+    {
+      "title": "Coupure électrique dans les parties communes",
+      "description": "Le disjoncteur du bâtiment saute à répétition et plusieurs couloirs sont sans lumière.",
+      "category": "ELECTRICITY",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Ascenseur bloqué entre deux étages",
+      "description": "Une personne est enfermée dans la cabine qui s'est arrêtée entre le troisième et le quatrième étage.",
+      "category": "ELEVATOR",
+      "priority": "URGENT"
+    },
+    {
+      "title": "Portes d'ascenseur qui se rouvrent",
+      "description": "Les portes de la cabine se ferment puis s'ouvrent plusieurs fois sans raison au rez-de-chaussée.",
+      "category": "ELEVATOR",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Ascenseur bruyant pendant la montée",
+      "description": "Un grincement inhabituel est entendu à chaque passage de la cabine entre les étages.",
+      "category": "ELEVATOR",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Bouton du sixième étage cassé",
+      "description": "Le bouton de destination est enfoncé dans la cabine et ne répond plus.",
+      "category": "ELEVATOR",
+      "priority": "LOW"
+    },
+    {
+      "title": "Ascenseur en panne depuis ce matin",
+      "description": "La cabine ne démarre plus et l'afficheur indique un code d'erreur.",
+      "category": "ELEVATOR",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Poubelles non ramassées",
+      "description": "Les sacs s'accumulent dans le local depuis plusieurs jours et une mauvaise odeur se répand.",
+      "category": "CLEANING",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Sol glissant dans l'entrée",
+      "description": "Le hall vient d'être lavé mais aucun panneau de sol mouillé n'a été posé.",
+      "category": "CLEANING",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Nettoyage insuffisant des escaliers",
+      "description": "Des traces de boue et de poussière restent visibles sur plusieurs paliers.",
+      "category": "CLEANING",
+      "priority": "LOW"
+    },
+    {
+      "title": "Déchets abandonnés devant le local",
+      "description": "Des cartons et des sacs éventrés encombrent le passage vers le local à poubelles.",
+      "category": "CLEANING",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Vitres de la porte d'entrée très sales",
+      "description": "Les traces sur les vitres empêchent de voir correctement l'extérieur en sortant.",
+      "category": "CLEANING",
+      "priority": "LOW"
+    },
+    {
+      "title": "Porte du garage forcée",
+      "description": "La serrure est arrachée et la porte reste ouverte, permettant l'accès au parking.",
+      "category": "SECURITY",
+      "priority": "URGENT"
+    },
+    {
+      "title": "Intrusion dans le local à vélos",
+      "description": "Le cadenas a été coupé et plusieurs affaires semblent avoir été déplacées.",
+      "category": "SECURITY",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Caméra de surveillance hors service",
+      "description": "L'écran de contrôle ne reçoit plus d'image de la caméra située à l'entrée principale.",
+      "category": "SECURITY",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Badge d'accès qui ouvre la mauvaise porte",
+      "description": "Le badge permet d'entrer dans le local technique alors qu'il devrait seulement ouvrir le hall.",
+      "category": "SECURITY",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Porte d'accès laissée ouverte la nuit",
+      "description": "Le ferme-porte est cassé et l'entrée de l'immeuble ne se verrouille plus.",
+      "category": "SECURITY",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Bruits de travaux tôt le matin",
+      "description": "Des travaux commencent avant l'heure autorisée et réveillent les logements voisins.",
+      "category": "OTHER",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Nid de guêpes près de la terrasse commune",
+      "description": "Un nid est visible sous la toiture au-dessus de l'espace où jouent les enfants.",
+      "category": "OTHER",
+      "priority": "HIGH"
+    },
+    {
+      "title": "Branche tombée dans la cour",
+      "description": "Une grosse branche bloque une partie du passage piéton après le vent de la nuit.",
+      "category": "OTHER",
+      "priority": "MEDIUM"
+    },
+    {
+      "title": "Boîte aux lettres descellée",
+      "description": "Une boîte du hall se détache du mur et risque de tomber lorsqu'on l'ouvre.",
+      "category": "OTHER",
+      "priority": "LOW"
+    },
+    {
+      "title": "Fumée suspecte dans le parking",
+      "description": "Une odeur de brûlé et une fumée visible proviennent d'un véhicule stationné au sous-sol.",
+      "category": "OTHER",
+      "priority": "URGENT"
+    }
+  ],
+  "pairs": [
+    {
+      "a": {
+        "title": "Fuite d'eau dans le couloir du troisième",
+        "description": "Le sol est mouillé devant la cage d'escalier et l'eau semble venir du plafond."
+      },
+      "b": {
+        "title": "Humidité près des marches",
+        "description": "De l'eau coule du plafond à côté de l'escalier au troisième niveau."
+      },
+      "duplicate": true
+    },
+    {
+      "a": {
+        "title": "Ascenseur immobilisé au rez-de-chaussée",
+        "description": "La cabine ne bouge plus et l'écran reste noir depuis ce matin."
+      },
+      "b": {
+        "title": "La cabine ne monte plus",
+        "description": "Depuis aujourd'hui, l'élévateur reste au niveau de l'entrée et ne répond pas aux boutons."
+      },
+      "duplicate": true
+    },
+    {
+      "a": {
+        "title": "Éclairage éteint dans le passage du sous-sol",
+        "description": "Les lampes du couloir menant aux caves ne fonctionnent plus."
+      },
+      "b": {
+        "title": "Plus aucune lumière vers les caves",
+        "description": "Le passage souterrain est plongé dans le noir, les ampoules ne s'allument pas."
+      },
+      "duplicate": true
+    },
+    {
+      "a": {
+        "title": "Déchets accumulés dans le local commun",
+        "description": "Le local poubelles déborde et dégage une odeur forte depuis plusieurs jours."
+      },
+      "b": {
+        "title": "Sacs oubliés et mauvaise odeur",
+        "description": "Les ordures n'ont pas été collectées dans la pièce de collecte depuis le début de la semaine."
+      },
+      "duplicate": true
+    },
+    {
+      "a": {
+        "title": "Serrure de la porte d'entrée cassée",
+        "description": "La porte principale ne se verrouille plus et reste accessible depuis la rue."
+      },
+      "b": {
+        "title": "Accès de l'immeuble non sécurisé",
+        "description": "Le mécanisme de fermeture du portail extérieur est hors service, les passants peuvent entrer."
+      },
+      "duplicate": true
+    },
+    {
+      "a": {
+        "title": "Ascenseur bloqué au quatrième étage",
+        "description": "La cabine ne répond plus aux commandes et un résident est coincé à l'intérieur."
+      },
+      "b": {
+        "title": "Miroir fissuré dans l'ascenseur",
+        "description": "Le miroir de la cabine est fendu mais la cabine se déplace normalement entre les étages."
+      },
+      "duplicate": false
+    },
+    {
+      "a": {
+        "title": "Fuite sous l'évier de la cuisine",
+        "description": "Le siphon goutte dès que l'eau coule et le meuble est humide."
+      },
+      "b": {
+        "title": "Robinet qui fuit dans la buanderie commune",
+        "description": "Le joint du robinet goutte même lorsqu'il est fermé, sans humidité autour du meuble."
+      },
+      "duplicate": false
+    },
+    {
+      "a": {
+        "title": "Ampoule grillée dans l'escalier",
+        "description": "La lampe du palier du premier étage ne s'allume plus."
+      },
+      "b": {
+        "title": "Prise électrique qui chauffe dans le hall",
+        "description": "Une prise dégage une odeur de plastique chaud et le disjoncteur a déclenché."
+      },
+      "duplicate": false
+    },
+    {
+      "a": {
+        "title": "Portes de l'ascenseur qui se rouvrent",
+        "description": "Les portes de la cabine se ferment puis repartent en ouverture au rez-de-chaussée."
+      },
+      "b": {
+        "title": "Nettoyage des portes de l'ascenseur",
+        "description": "Les traces de doigts et de poussière sont visibles sur les portes extérieures à chaque étage."
+      },
+      "duplicate": false
+    },
+    {
+      "a": {
+        "title": "Graffitis sur le mur du hall",
+        "description": "Des inscriptions ont été peintes sur le mur près de la boîte aux lettres."
+      },
+      "b": {
+        "title": "Mur fissuré dans le hall",
+        "description": "Une fissure s'est formée près du plafond et semble s'allonger depuis la semaine dernière."
+      },
+      "duplicate": false
+    }
+  ]
+}
