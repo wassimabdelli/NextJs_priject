@@ -17,6 +17,53 @@ export const Role = {
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
 
+export const AnnouncementCategory = {
+  GENERAL: "GENERAL",
+  MAINTENANCE: "MAINTENANCE",
+  SECURITY: "SECURITY",
+  MEETING: "MEETING",
+  PAYMENT: "PAYMENT",
+  EMERGENCY: "EMERGENCY",
+  OTHER: "OTHER",
+} as const;
+export type AnnouncementCategory =
+  (typeof AnnouncementCategory)[keyof typeof AnnouncementCategory];
+
+export const AnnouncementPriority = {
+  LOW: "LOW",
+  NORMAL: "NORMAL",
+  HIGH: "HIGH",
+  URGENT: "URGENT",
+} as const;
+export type AnnouncementPriority =
+  (typeof AnnouncementPriority)[keyof typeof AnnouncementPriority];
+
+export const AnnouncementAudience = {
+  RESIDENTS: "RESIDENTS",
+  TECHNICIANS: "TECHNICIANS",
+  ALL: "ALL",
+} as const;
+export type AnnouncementAudience =
+  (typeof AnnouncementAudience)[keyof typeof AnnouncementAudience];
+
+export const AnnouncementStatus = {
+  DRAFT: "DRAFT",
+  SCHEDULED: "SCHEDULED",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+} as const;
+export type AnnouncementStatus =
+  (typeof AnnouncementStatus)[keyof typeof AnnouncementStatus];
+
+export const IntelligenceReviewStatus = {
+  DRAFT: "DRAFT",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+export type IntelligenceReviewStatus =
+  (typeof IntelligenceReviewStatus)[keyof typeof IntelligenceReviewStatus];
+
 export const ResidentType = {
   OWNER: "OWNER",
   TENANT: "TENANT",

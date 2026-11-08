@@ -1,8 +1,10 @@
-"use client";
-
-import { ResourcePage } from "@/components/crud/ResourcePage";
-import { announcementConfig } from "@/lib/resources/registry";
+import { Suspense } from "react";
+import { AnnouncementDashboard } from "@/components/announcements/AnnouncementDashboard";
 
 export default function AnnouncementsPage() {
-  return <ResourcePage config={announcementConfig} />;
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Chargement des annonces…</div>}>
+      <AnnouncementDashboard />
+    </Suspense>
+  );
 }

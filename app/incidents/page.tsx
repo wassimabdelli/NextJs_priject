@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, Suspense } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -14,6 +14,16 @@ import {
   UserCheck,
   ArrowRight,
   ShieldAlert,
+  ClipboardList,
+  History,
+  MessageCircle,
+  Wrench,
+  Sparkles,
+  Droplets,
+  Zap,
+  Shield,
+  Building2,
+  ChevronDown,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/Card";
@@ -28,6 +38,17 @@ import { AiDiagnosticButton } from "@/components/ai/AiDiagnosticButton";
 import { fetchWithOffline } from "@/lib/offline/apiClient";
 import type { IncidentDTO, ResidenceDTO } from "@/types/api";
 import { IncidentCategory, Priority, IncidentStatus, Role } from "@/types/enums";
+import { IncidentHistory } from "@/components/incidents/IncidentHistory";
+import { IncidentComments } from "@/components/incidents/IncidentComments";
+import { IncidentWorkflowTimeline } from "@/components/incidents/IncidentWorkflowTimeline";
+import { ResolutionReview } from "@/components/incidents/ResolutionReview";
+import { ResolutionSubmissionForm } from "@/components/incidents/ResolutionSubmissionForm";
+import { IncidentDashboard } from "@/components/incidents/dashboard/IncidentDashboard";
+import { AIReportPanel } from "@/components/ai/AIReportPanel";
+import AiTriagePanel, { type AiTriageSuggestion } from "@/components/ai/AiTriagePanel";
+import { IncidentFormAssist } from "@/components/ai/IncidentFormAssist";
+import type { PossibleDuplicate } from "@/components/ai/AIDuplicateWarning";
+import { IncidentAIContext } from "@/components/ai/IncidentAIContext";
 
 // Libellés français
 const CATEGORY_LABELS: Record<string, string> = {
@@ -53,6 +74,15 @@ const PRIORITY_BORDER_CLASSES: Record<Priority, string> = {
   [Priority.LOW]: "border-l-slate-400 dark:border-l-slate-600",
 };
 
+const CATEGORY_ICON: Record<IncidentCategory, typeof Wrench> = {
+  PLUMBING: Droplets,
+  ELECTRICITY: Zap,
+  ELEVATOR: Building2,
+  CLEANING: Sparkles,
+  SECURITY: Shield,
+  OTHER: Wrench,
+};
+
 const WORKFLOW_STEPS: Array<{ key: IncidentStatus; label: string }> = [
   { key: IncidentStatus.REPORTED, label: "Signalé" },
   { key: IncidentStatus.ASSIGNED, label: "Assigné" },
@@ -60,10 +90,10 @@ const WORKFLOW_STEPS: Array<{ key: IncidentStatus; label: string }> = [
   { key: IncidentStatus.RESOLVED, label: "Résolu" },
 ];
 
-function getProp(obj: any, key: string): any {
-  if (!obj) return undefined;
-  if (typeof obj === "object") return obj[key];
-  return undefined;
+function getProp(obj: unknown, key: string): string | number | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const value = (obj as Record<string, unknown>)[key];
+  return typeof value === "string" || typeof value === "number" ? value : undefined;
 }
 
 function formatFullDate(dateVal?: string | Date): string {
@@ -106,6 +136,14 @@ function formatRelativeTime(dateVal?: string | Date): string {
   }
 }
 
+function compressedDataUrlToFile(dataUrl: string, fileName: string): File {
+  const [metadata, encoded] = dataUrl.split(",");
+  const mimeType = metadata.match(/^data:(.*?);base64$/)?.[1] ?? "image/jpeg";
+  const binary = atob(encoded);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new File([bytes], fileName, { type: mimeType });
+}
+
 function IncidentsContent() {
   const searchParams = useSearchParams();
   const [incidents, setIncidents] = useState<IncidentDTO[]>([]);
@@ -117,7 +155,16 @@ function IncidentsContent() {
   // Filtres
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
+  const [residenceFilter, setResidenceFilter] = useState<string>("ALL");
+  const [technicianFilter, setTechnicianFilter] = useState<string>("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalIncidents, setTotalIncidents] = useState(0);
+  const pageSize = 20;
 
   // Modal de création
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -127,9 +174,19 @@ function IncidentsContent() {
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
   const [residenceId, setResidenceId] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [aiFiles, setAiFiles] = useState<File[]>([]);
+  const [acceptedTriage, setAcceptedTriage] = useState<AiTriageSuggestion | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [strongDuplicateCount, setStrongDuplicateCount] = useState(0);
+  const [duplicateDismissed, setDuplicateDismissed] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleDuplicateMatchesChange = useCallback((matches: PossibleDuplicate[]) => {
+    const strong = matches.filter((match) => match.similarity >= 80).length;
+    setStrongDuplicateCount(strong);
+    if (strong > 0) setDuplicateDismissed(false);
+  }, []);
 
   // Modal d'assignation
   const [assigningIncident, setAssigningIncident] = useState<IncidentDTO | null>(null);
@@ -138,53 +195,138 @@ function IncidentsContent() {
 
   // Modal de détail d'incident & zoom photo
   const [selectedIncident, setSelectedIncident] = useState<IncidentDTO | null>(null);
+  const [selectedIncidentTab, setSelectedIncidentTab] = useState<
+    "overview" | "history" | "discussion" | "resolution" | "ai"
+  >("overview");
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
 
   // État local pour le déploiement des descriptions longues
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const [collapsedIncidentGroups, setCollapsedIncidentGroups] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submitLock = useRef(false);
-  const clientIdRef = useRef<string>(
-    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
-  );
+  const clientIdRef = useRef<string | null>(null);
+
+  const getClientId = () => {
+    if (!clientIdRef.current) {
+      clientIdRef.current =
+        typeof globalThis.crypto?.randomUUID === "function"
+          ? globalThis.crypto.randomUUID()
+          : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+              const random = Math.floor(Math.random() * 16);
+              const value = character === "x" ? random : (random & 0x3) | 0x8;
+              return value.toString(16);
+            });
+    }
+    return clientIdRef.current;
+  };
 
   const resetClientId = () => {
-    clientIdRef.current =
-      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+    clientIdRef.current = null;
   };
+
+  const openCreateModal = useCallback(() => {
+    setStrongDuplicateCount(0);
+    setDuplicateDismissed(false);
+    setIsModalOpen(true);
+  }, []);
 
   const toggleExpandDescription = (id: string) => {
     setExpandedDescriptions((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [incRes, resRes] = await Promise.all([
-        fetchWithOffline<any>("/api/incidents"),
-        fetchWithOffline<any>("/api/residences"),
-      ]);
+      setErrorMessage(null);
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
+      if (search.trim()) params.set("q", search.trim());
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (categoryFilter !== "ALL") params.set("category", categoryFilter);
+      if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
+      if (residenceFilter !== "ALL") params.set("residence", residenceFilter);
+      if (technicianFilter !== "ALL") params.set("assignedTo", technicianFilter);
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+      const sortValues: Record<string, string> = {
+        newest: "reportedAt:desc",
+        oldest: "reportedAt:asc",
+        priority: "priority:desc",
+        status: "status:asc",
+      };
+      params.set("sort", sortValues[sortOrder] || sortValues.newest);
+      const incRes = await fetchWithOffline<
+        IncidentDTO[] | { data?: IncidentDTO[]; meta?: { total?: number } }
+      >(`/api/incidents?${params}`);
       const incList = Array.isArray(incRes) ? incRes : incRes?.data || [];
-      const resList = Array.isArray(resRes) ? resRes : resRes?.data || [];
       setIncidents(incList);
-      setResidences(resList);
-      if (resList.length > 0) {
-        setResidenceId(resList[0]._id);
+      setTotalIncidents(Array.isArray(incRes) ? incList.length : incRes.meta?.total || 0);
+      const requestedIncidentId = searchParams.get("incident");
+      if (requestedIncidentId) {
+        let requestedIncident = incList.find((incident) => incident._id === requestedIncidentId);
+        if (!requestedIncident) {
+          const response = await fetchWithOffline<
+            IncidentDTO | { data?: IncidentDTO | IncidentDTO[] }
+          >(
+            `/api/incidents/${encodeURIComponent(requestedIncidentId)}`
+          );
+          if (response && "_id" in response) {
+            requestedIncident = response;
+          } else if (response?.data && !Array.isArray(response.data)) {
+            requestedIncident = response.data;
+          }
+        }
+        if (requestedIncident) {
+          setSelectedIncidentTab("overview");
+          setSelectedIncident(requestedIncident);
+        }
+      }
+
+      if (currentUser && currentUser.role !== Role.TECHNICIAN) {
+        const resRes = await fetchWithOffline<
+          ResidenceDTO[] | { data?: ResidenceDTO[] }
+        >("/api/residences");
+        const resList = Array.isArray(resRes) ? resRes : resRes?.data || [];
+        setResidences(resList);
+        if (resList.length > 0) {
+          setResidenceId((current) => current || resList[0]._id);
+        }
+      } else {
+        setResidences([]);
       }
     } catch (err) {
       console.error("[Incidents] Erreur chargement :", err);
+      setErrorMessage(err instanceof Error ? err.message : "Impossible de charger les réclamations.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    categoryFilter,
+    currentUser,
+    dateFrom,
+    dateTo,
+    page,
+    priorityFilter,
+    residenceFilter,
+    search,
+    searchParams,
+    sortOrder,
+    statusFilter,
+    technicianFilter,
+  ]);
 
   useEffect(() => {
-    loadData();
-    if (searchParams.get("action") === "new" || searchParams.get("new") === "1") {
-      setIsModalOpen(true);
-    }
+    const timer = window.setTimeout(() => {
+      void loadData();
+      if (searchParams.get("action") === "new" || searchParams.get("new") === "1") {
+        openCreateModal();
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadData, openCreateModal, searchParams]);
 
+  useEffect(() => {
     // Récupérer la session utilisateur courante
     fetch("/api/auth/session")
       .then((res) => (res.ok ? res.json() : null))
@@ -203,7 +345,7 @@ function IncidentsContent() {
         }
       })
       .catch(() => {});
-  }, [searchParams]);
+  }, []);
 
   // Compression photo côté client via canvas (strictement <= 1 Mo)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,7 +384,13 @@ function IncidentsContent() {
           compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
         }
 
+        const compressedFileName = `${file.name.replace(/\.[^.]+$/, "") || "incident-photo"}.jpg`;
         setPhotos((prev) => [...prev.slice(0, 2), compressedDataUrl]);
+        setAiFiles((prev) => [
+          ...prev.slice(0, 2),
+          compressedDataUrlToFile(compressedDataUrl, compressedFileName),
+        ]);
+        setAcceptedTriage(null);
       };
       img.src = event.target?.result as string;
     };
@@ -264,17 +412,25 @@ function IncidentsContent() {
     setErrorMessage(null);
 
     try {
+      const trimmedDescription = description.trim();
+      const firstSentence = trimmedDescription.split(/[.!?\r\n]/, 1)[0].trim();
+      const submittedTitle =
+        title.trim() ||
+        (firstSentence.length >= 3
+          ? firstSentence.slice(0, 180)
+          : trimmedDescription.slice(0, 180));
       const newIncident = await fetchWithOffline<IncidentDTO>("/api/incidents", {
         method: "POST",
         entity: "incident",
         body: JSON.stringify({
           residence: residenceId,
-          title,
-          description,
+          title: submittedTitle,
+          description: trimmedDescription,
           category,
-          priority,
+          ...(residentWithoutPhoto ? {} : { priority }),
           photos,
-          clientId: clientIdRef.current,
+          ...(acceptedTriage ? { aiTriage: acceptedTriage } : {}),
+          clientId: getClientId(),
         }),
       });
 
@@ -282,6 +438,8 @@ function IncidentsContent() {
       setTitle("");
       setDescription("");
       setPhotos([]);
+      setAiFiles([]);
+      setAcceptedTriage(null);
       resetClientId();
       setIsModalOpen(false);
 
@@ -297,6 +455,24 @@ function IncidentsContent() {
     } finally {
       setIsSubmitting(false);
       submitLock.current = false;
+    }
+  };
+
+  const inspectIncident = async (incidentId: string) => {
+    const cached = incidents.find((item) => item._id === incidentId);
+    if (cached) {
+      setSelectedIncident(cached);
+      setSelectedIncidentTab("overview");
+      return;
+    }
+    try {
+      const response = await fetch(`/api/incidents/${incidentId}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Incident inaccessible.");
+      setSelectedIncident(data as IncidentDTO);
+      setSelectedIncidentTab("overview");
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : "Impossible d’ouvrir l’incident.");
     }
   };
 
@@ -318,6 +494,8 @@ function IncidentsContent() {
       setIncidents((prev) =>
         prev.map((inc) => (inc._id === incidentId ? { ...inc, ...data } : inc))
       );
+      setSelectedIncident((prev) => prev?._id === incidentId ? { ...prev, ...data } : prev);
+      window.dispatchEvent(new Event("syndicpro:dashboard-refresh"));
       setSuccessMessage(`Statut de l'incident passé à : ${STATUS_LABELS[nextStatus] || nextStatus}`);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: unknown) {
@@ -348,6 +526,10 @@ function IncidentsContent() {
       setIncidents((prev) =>
         prev.map((inc) => (inc._id === assigningIncident._id ? { ...inc, ...data } : inc))
       );
+      setSelectedIncident((prev) =>
+        prev?._id === assigningIncident._id ? { ...prev, ...data } : prev
+      );
+      window.dispatchEvent(new Event("syndicpro:dashboard-refresh"));
       setAssigningIncident(null);
       setSelectedTechId("");
       setSuccessMessage("Technicien assigné avec succès ! Statut passé à ASSIGNED.");
@@ -359,46 +541,105 @@ function IncidentsContent() {
     }
   };
 
-  const filteredIncidents = useMemo(() => {
-    return incidents.filter((inc) => {
-      const matchStatus =
-        statusFilter === "ALL" || inc.status === statusFilter;
-      const matchCat =
-        categoryFilter === "ALL" || inc.category === categoryFilter;
-      const matchSearch =
-        !search ||
-        inc.title?.toLowerCase().includes(search.toLowerCase()) ||
-        inc.description?.toLowerCase().includes(search.toLowerCase());
-      return matchStatus && matchCat && matchSearch;
-    });
-  }, [incidents, statusFilter, categoryFilter, search]);
+  const filteredIncidents = useMemo(() => incidents, [incidents]);
 
   const canAssign =
     currentUser?.role === Role.ADMIN || currentUser?.role === Role.SYNDIC;
+  const canCreateIncident =
+    currentUser?.role === Role.ADMIN ||
+    currentUser?.role === Role.SYNDIC ||
+    currentUser?.role === Role.RESIDENT;
+  const residentWithoutPhoto =
+    currentUser?.role === Role.RESIDENT && photos.length === 0;
 
-  const isFilterActive = statusFilter !== "ALL" || categoryFilter !== "ALL" || search.trim() !== "";
+  const isFilterActive =
+    statusFilter !== "ALL" ||
+    categoryFilter !== "ALL" ||
+    priorityFilter !== "ALL" ||
+    residenceFilter !== "ALL" ||
+    technicianFilter !== "ALL" ||
+    Boolean(dateFrom || dateTo) ||
+    search.trim() !== "";
+
+  const clearFilters = () => {
+    setPage(1);
+    setStatusFilter("ALL");
+    setCategoryFilter("ALL");
+    setPriorityFilter("ALL");
+    setResidenceFilter("ALL");
+    setTechnicianFilter("ALL");
+    setDateFrom("");
+    setDateTo("");
+    setSortOrder("newest");
+    setSearch("");
+  };
+
+  const activeFilterChips = [
+    ...(search.trim() ? [{ key: "search", label: `Recherche : ${search.trim()}`, clear: () => setSearch("") }] : []),
+    ...(statusFilter !== "ALL" ? [{ key: "status", label: `Statut : ${STATUS_LABELS[statusFilter] ?? statusFilter}`, clear: () => setStatusFilter("ALL") }] : []),
+    ...(categoryFilter !== "ALL" ? [{ key: "category", label: `Catégorie : ${CATEGORY_LABELS[categoryFilter] ?? categoryFilter}`, clear: () => setCategoryFilter("ALL") }] : []),
+    ...(priorityFilter !== "ALL" ? [{ key: "priority", label: `Priorité : ${priorityFilter}`, clear: () => setPriorityFilter("ALL") }] : []),
+    ...(residenceFilter !== "ALL" ? [{ key: "residence", label: `Résidence : ${residences.find((item) => item._id === residenceFilter)?.name ?? "Sélectionnée"}`, clear: () => setResidenceFilter("ALL") }] : []),
+    ...(technicianFilter !== "ALL" ? [{ key: "technician", label: `Technicien : ${technicians.find((item) => item._id === technicianFilter)?.name ?? "Sélectionné"}`, clear: () => setTechnicianFilter("ALL") }] : []),
+    ...(dateFrom ? [{ key: "dateFrom", label: `Du ${dateFrom}`, clear: () => setDateFrom("") }] : []),
+    ...(dateTo ? [{ key: "dateTo", label: `Au ${dateTo}`, clear: () => setDateTo("") }] : []),
+  ];
+  const groupedIncidentRows = canAssign
+    ? [
+        {
+          key: "unassigned",
+          label: "À assigner",
+          incidents: filteredIncidents.filter((incident) =>
+            incident.status !== IncidentStatus.RESOLVED && !incident.assignedTo
+          ),
+        },
+        {
+          key: "in-progress",
+          label: "En cours",
+          incidents: filteredIncidents.filter((incident) =>
+            incident.status !== IncidentStatus.RESOLVED && Boolean(incident.assignedTo)
+          ),
+        },
+        {
+          key: "resolved",
+          label: "Résolues",
+          incidents: filteredIncidents.filter((incident) => incident.status === IncidentStatus.RESOLVED),
+        },
+      ].flatMap((group) => [
+        { kind: "group" as const, key: group.key, label: group.label, count: group.incidents.length },
+        ...(!collapsedIncidentGroups[group.key]
+          ? group.incidents.map((incident) => ({ kind: "incident" as const, incident }))
+          : []),
+      ])
+    : filteredIncidents.map((incident) => ({ kind: "incident" as const, incident }));
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        <IncidentDashboard />
+        {(currentUser?.role === Role.ADMIN || currentUser?.role === Role.SYNDIC) && (
+          <AIReportPanel endpoint="/api/ai/reports/incidents" title="Générer le rapport IA des incidents" />
+        )}
         {/* En-tête */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-3xl bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-500 p-5 text-white shadow-lg shadow-sky-900/10 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 dark:ring-1 dark:ring-white/10 sm:flex-row sm:items-center sm:justify-between sm:p-7">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
               Incidents & Pannes
             </h1>
-            <p className="text-xs text-slate-500 sm:text-sm dark:text-slate-400">
+            <p className="mt-1 text-xs text-sky-50 sm:text-sm dark:text-slate-300">
               Déclarez et suivez la résolution des pannes même sans connexion internet
             </p>
           </div>
-          <Button
-            size="md"
-            onClick={() => setIsModalOpen(true)}
-            className="self-start sm:self-auto gap-2 min-h-[44px]"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Nouveau signalement
-          </Button>
+          {canCreateIncident && (
+            <Button
+              size="md"
+              onClick={openCreateModal}
+              className="self-start gap-2 min-h-[44px] bg-white text-sky-800 shadow-sm hover:bg-sky-50 dark:bg-white dark:text-sky-900 dark:hover:bg-sky-100 sm:self-auto"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Nouveau signalement
+            </Button>
+          )}
         </div>
 
         {/* Message de succès */}
@@ -418,23 +659,30 @@ function IncidentsContent() {
         )}
 
         {/* Filtres et recherche */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1">
+        <div className="sticky top-16 z-20 space-y-3 rounded-2xl border border-slate-200/90 bg-white/90 p-3 shadow-sm backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/90 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Rechercher un incident (ex: fuite, ascenseur)..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                setSearch(e.target.value);
+              }}
               className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-base sm:text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
             <Filter className="h-4 w-4 text-slate-400 shrink-0" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                setStatusFilter(e.target.value);
+              }}
               className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
               <option value="ALL">Tous les statuts</option>
@@ -446,7 +694,10 @@ function IncidentsContent() {
 
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                setCategoryFilter(e.target.value);
+              }}
               className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
               <option value="ALL">Toutes catégories</option>
@@ -457,7 +708,88 @@ function IncidentsContent() {
               <option value="SECURITY">Sécurité</option>
               <option value="OTHER">Autre</option>
             </select>
+
+            <select
+              aria-label="Filtrer par priorité"
+              value={priorityFilter}
+              onChange={(e) => {
+                setPage(1);
+                setPriorityFilter(e.target.value);
+              }}
+              className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="ALL">Toutes priorités</option>
+              <option value="URGENT">Urgente</option>
+              <option value="HIGH">Haute</option>
+              <option value="MEDIUM">Moyenne</option>
+              <option value="LOW">Basse</option>
+            </select>
+
+            {(currentUser?.role === Role.ADMIN || currentUser?.role === Role.SYNDIC) && (
+              <>
+                <select
+                  aria-label="Filtrer par résidence"
+                  value={residenceFilter}
+                  onChange={(e) => {
+                    setPage(1);
+                    setResidenceFilter(e.target.value);
+                  }}
+                  className="min-h-[44px] max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  <option value="ALL">Toutes résidences</option>
+                  {residences.map((residence) => <option key={residence._id} value={residence._id}>{residence.name}</option>)}
+                </select>
+                <select
+                  aria-label="Filtrer par technicien"
+                  value={technicianFilter}
+                  onChange={(e) => {
+                    setPage(1);
+                    setTechnicianFilter(e.target.value);
+                  }}
+                  className="min-h-[44px] max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  <option value="ALL">Tous les techniciens</option>
+                  {technicians.map((technician) => <option key={technician._id} value={technician._id}>{technician.name}</option>)}
+                </select>
+              </>
+            )}
+
+            <select
+              aria-label="Trier les réclamations"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="newest">Plus récentes</option>
+              <option value="oldest">Plus anciennes</option>
+              <option value="priority">Priorité</option>
+              <option value="status">Statut</option>
+            </select>
           </div>
+
+          </div>
+
+          <div className="flex flex-nowrap items-end gap-2 overflow-x-auto border-t border-slate-100 pt-3 dark:border-slate-800 sm:flex-wrap sm:overflow-visible">
+            <label className="flex shrink-0 flex-col gap-1 text-xs font-semibold text-slate-500">
+              Du
+              <input type="date" value={dateFrom} max={dateTo || new Date().toISOString().slice(0, 10)} onChange={(e) => { setPage(1); setDateFrom(e.target.value); }} className="min-h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+            </label>
+            <label className="flex shrink-0 flex-col gap-1 text-xs font-semibold text-slate-500">
+              Au
+              <input type="date" value={dateTo} min={dateFrom || undefined} max={new Date().toISOString().slice(0, 10)} onChange={(e) => { setPage(1); setDateTo(e.target.value); }} className="min-h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+            </label>
+            {isFilterActive && <Button type="button" size="sm" variant="ghost" className="shrink-0 min-h-[44px]" onClick={clearFilters}>Effacer les filtres</Button>}
+          </div>
+          {activeFilterChips.length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto border-t border-slate-100 pt-3 dark:border-slate-800" aria-label="Filtres actifs">
+              {activeFilterChips.map((filter) => (
+                <button key={filter.key} type="button" onClick={() => { filter.clear(); setPage(1); }} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-sky-50 px-3 text-xs font-semibold text-sky-800 transition hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-sky-900">
+                  {filter.label}<X aria-hidden="true" className="h-3.5 w-3.5" />
+                </button>
+              ))}
+              <button type="button" onClick={clearFilters} className="min-h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-slate-600 underline underline-offset-2 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:text-slate-300 dark:hover:text-white">Effacer les filtres</button>
+            </div>
+          )}
         </div>
 
         {/* LISTE DES INCIDENTS */}
@@ -476,20 +808,50 @@ function IncidentsContent() {
                 ? "Aucune panne ou anomalie ne correspond à votre filtre actuel."
                 : currentUser?.role === Role.RESIDENT
                 ? "Vous n'avez signalé aucun incident pour le moment."
+                : currentUser?.role === Role.TECHNICIAN
+                ? "Aucune intervention ne vous est assignée pour le moment."
                 : "Aucun incident enregistré."
             }
             action={
-              <Button onClick={() => setIsModalOpen(true)} className="min-h-[44px]">
-                Signaler une anomalie
-              </Button>
+              canCreateIncident && !isFilterActive ? (
+                <Button onClick={openCreateModal} className="min-h-[44px]">
+                  Signaler une anomalie
+                </Button>
+              ) : isFilterActive ? (
+                <Button variant="outline" onClick={clearFilters} className="min-h-[44px]">
+                  Effacer les filtres
+                </Button>
+              ) : undefined
             }
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {filteredIncidents.map((inc) => {
-              const assignedToObj = inc.assignedTo as any;
+            {groupedIncidentRows.map((row) => {
+              if (row.kind === "group") {
+                const isCollapsed = Boolean(collapsedIncidentGroups[row.key]);
+                return (
+                  <button
+                    key={`group-${row.key}`}
+                    type="button"
+                    aria-expanded={!isCollapsed}
+                    onClick={() => setCollapsedIncidentGroups((current) => ({ ...current, [row.key]: !current[row.key] }))}
+                    className="col-span-full flex min-h-[48px] items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-800"
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+                      <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
+                      {row.label}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      {row.count} <span className="font-normal">sur cette page</span>
+                    </span>
+                  </button>
+                );
+              }
+              const inc = row.incident;
+              const assignedToObj =
+                typeof inc.assignedTo === "object" && inc.assignedTo ? inc.assignedTo : undefined;
               const assignedToId =
-                typeof inc.assignedTo === "object" ? assignedToObj?._id : inc.assignedTo;
+                assignedToObj?._id ?? (typeof inc.assignedTo === "string" ? inc.assignedTo : undefined);
               const isAssignedTech =
                 currentUser?.role === Role.TECHNICIAN &&
                 Boolean(assignedToId) &&
@@ -520,11 +882,15 @@ function IncidentsContent() {
                 aptLabel = `Lot ${aptNumber}${aptFloor !== undefined && aptFloor !== null && aptFloor !== "" ? ` (Étage ${aptFloor})` : ""}`;
               }
 
-              const reporterId = typeof inc.reportedBy === "object" ? (inc.reportedBy as any)?._id : inc.reportedBy;
+              const reporterId =
+                typeof inc.reportedBy === "object" && inc.reportedBy
+                  ? inc.reportedBy._id
+                  : inc.reportedBy;
               const isCurrentUserReporter = currentUser?.id && reporterId === currentUser.id;
               const reporterName = isCurrentUserReporter ? "Vous" : getProp(inc.reportedBy, "name") || "—";
 
               const categoryLabel = CATEGORY_LABELS[inc.category] || inc.category;
+              const CategoryIcon = CATEGORY_ICON[inc.category] ?? Wrench;
               const isExpanded = !!expandedDescriptions[inc._id];
               const desc = inc.description || "";
 
@@ -540,33 +906,34 @@ function IncidentsContent() {
                   onClick={(e) => {
                     const target = e.target as HTMLElement;
                     if (target.closest("button, a, input, select, textarea")) return;
+                    setSelectedIncidentTab("overview");
                     setSelectedIncident(inc);
                   }}
                   className={`flex flex-col justify-between space-y-3 border-l-4 cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 ${priorityBorderClass}`}
                 >
                   <div className="space-y-3">
-                    {/* En-tête : Titre + Badge de priorité */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
+                        <CategoryIcon aria-hidden="true" className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1 space-y-0.5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-slate-900 dark:text-white">
+                          <span className="line-clamp-2 font-bold text-slate-900 dark:text-white">
                             {inc.title}
                           </span>
-                          {(inc.pending || inc.createdOffline) && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                              <Clock className="h-3 w-3" />
-                              En attente de synchro
-                            </span>
-                          )}
                         </div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">
                           {idShort && <span className="font-mono font-semibold">#{idShort}</span>}
-                          {idShort && " • "}
-                          {fullDateStr}
-                          {relativeTimeStr && ` (${relativeTimeStr})`}
+                          {idShort && " · "}
+                          <span title={fullDateStr}>{relativeTimeStr || fullDateStr}</span>
                         </p>
                       </div>
-                      <Badge priority={inc.priority} />
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <Badge priority={inc.priority} />
+                        {inc.pending || inc.createdOffline ? (
+                          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200">Hors ligne</span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {/* Grille d'infos (2 colonnes dès sm:) */}
@@ -640,7 +1007,6 @@ function IncidentsContent() {
                         </div>
                       </div>
                     )}
-
                     {/* Technicien assigné */}
                     <div className="text-xs">
                       {techName ? (
@@ -659,53 +1025,42 @@ function IncidentsContent() {
                           )}
                         </div>
                       ) : canAssign ? (
-                        <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          <span>Non assigné</span>
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">
+                          <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            Non assigné · à prendre en charge
+                          </span>
+                          {inc.status === IncidentStatus.REPORTED && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="min-h-[44px] bg-amber-600 px-3 text-xs text-white hover:bg-amber-700"
+                              onClick={() => {
+                                setAssigningIncident(inc);
+                                setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
+                              }}
+                            >
+                              <UserCheck aria-hidden="true" className="h-4 w-4" />
+                              Assigner un technicien
+                            </Button>
+                          )}
                         </div>
                       ) : null}
                     </div>
 
-                    {/* Mini barre de progression en 4 étapes */}
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                        {WORKFLOW_STEPS.map((step, idx) => {
-                          const isPassed = idx <= currentStepIndex;
-                          const isCurrent = idx === currentStepIndex;
-                          return (
-                            <span
-                              key={step.key}
-                              className={
-                                isCurrent
-                                  ? "text-sky-600 dark:text-sky-400 font-bold"
-                                  : isPassed
-                                  ? "text-slate-700 dark:text-slate-300"
-                                  : "text-slate-400 dark:text-slate-600"
-                              }
-                            >
-                              {step.label}
-                            </span>
-                          );
-                        })}
-                      </div>
+                    <div className="space-y-2 pt-1">
                       <div className="grid grid-cols-4 gap-1">
                         {WORKFLOW_STEPS.map((step, idx) => {
                           const isPassed = idx <= currentStepIndex;
                           const isCurrent = idx === currentStepIndex;
-                          let barColor = "bg-slate-200 dark:bg-slate-800";
-                          if (isCurrent) {
-                            barColor =
-                              inc.status === IncidentStatus.RESOLVED
-                                ? "bg-emerald-500"
-                                : "bg-sky-600 ring-2 ring-sky-300 dark:ring-sky-900";
-                          } else if (isPassed) {
-                            barColor = "bg-sky-500";
-                          }
                           return (
-                            <div
-                              key={step.key}
-                              className={`h-1.5 rounded-full transition-all ${barColor}`}
-                            />
+                            <div key={step.key} className="relative flex flex-col items-center gap-1.5 text-center">
+                              {idx < WORKFLOW_STEPS.length - 1 && (
+                                <span aria-hidden="true" className={`absolute left-1/2 top-[7px] h-0.5 w-full ${idx < currentStepIndex ? "bg-sky-500" : "bg-slate-200 dark:bg-slate-700"}`} />
+                              )}
+                              <span className={`relative z-10 h-4 w-4 rounded-full border-2 ${isCurrent ? (inc.status === IncidentStatus.RESOLVED ? "border-emerald-500 bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-950" : "border-sky-600 bg-sky-600 ring-2 ring-sky-200 dark:ring-sky-950") : isPassed ? "border-sky-500 bg-sky-500" : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"}`} />
+                              <span className={`text-[9px] font-semibold leading-tight sm:text-[10px] ${isCurrent ? "text-sky-700 dark:text-sky-300" : "text-slate-500 dark:text-slate-400"}`}>{step.label}</span>
+                            </div>
                           );
                         })}
                       </div>
@@ -721,23 +1076,6 @@ function IncidentsContent() {
 
                     {/* Actions de workflow strict */}
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      {inc.status === IncidentStatus.REPORTED && canAssign && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="w-full text-xs min-h-[44px] gap-1"
-                          onClick={() => {
-                            setAssigningIncident(inc);
-                            setSelectedTechId(
-                              technicians.length > 0 ? technicians[0]._id : ""
-                            );
-                          }}
-                        >
-                          <UserCheck className="h-3.5 w-3.5" />
-                          Assigner un technicien
-                        </Button>
-                      )}
-
                       {canAdvanceInProgress && (
                         <Button
                           size="sm"
@@ -779,6 +1117,25 @@ function IncidentsContent() {
               );
             })}
           </div>
+        )}
+
+        {!loading && totalIncidents > pageSize && (
+          <nav
+            aria-label="Pagination des réclamations"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+          >
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Page {page} sur {Math.max(1, Math.ceil(totalIncidents / pageSize))} · {totalIncidents} réclamation(s)
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+                Précédent
+              </Button>
+              <Button type="button" size="sm" variant="outline" disabled={page >= Math.ceil(totalIncidents / pageSize)} onClick={() => setPage((value) => value + 1)}>
+                Suivant
+              </Button>
+            </div>
+          </nav>
         )}
 
         {/* Modal d'assignation de technicien */}
@@ -823,86 +1180,186 @@ function IncidentsContent() {
         </BottomSheet>
 
         {/* BOTTOM SHEET : FORMULAIRE NOUVEL INCIDENT (OFFLINE READY) */}
-        <BottomSheet
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          title="Signaler un incident"
-          description="Enregistrez une anomalie même sans connexion, avec photo jointe (max 1 Mo)."
-        >
-          <form onSubmit={handleCreateIncident} className="space-y-4 pt-2">
+        {canCreateIncident && (
+          <BottomSheet
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title="Signaler un incident"
+            description="Enregistrez une anomalie même hors ligne, avec jusqu'à 3 photos (1 Mo chacune)."
+          >
+          <form onSubmit={handleCreateIncident} className="space-y-5 pt-2">
             {errorMessage && (
               <div className="rounded-xl bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400">
                 {errorMessage}
               </div>
             )}
 
-            {residences.length > 1 && (
-              <Select
-                label="Résidence concernée"
-                value={residenceId}
-                onChange={(e) => setResidenceId(e.target.value)}
-                required
+            <section className="space-y-3">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Où ?</h3>
+              {residences.length > 1 ? (
+                <Select
+                  label="Résidence concernée"
+                  value={residenceId}
+                  onChange={(e) => setResidenceId(e.target.value)}
+                  required
+                >
+                  {residences.map((r) => (
+                    <option key={r._id} value={r._id}>
+                      {r.name} ({r.city})
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  {residences[0]
+                    ? [residences[0].name, residences[0].city].filter(Boolean).join(" · ")
+                    : "Aucune résidence disponible"}
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Quoi ?</h3>
+              <Input
+                label="Titre de l'incident"
+                placeholder="Facultatif — généré depuis la photo ou la description"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setAcceptedTriage(null);
+                }}
+              />
+
+              <div className={`grid gap-3 ${residentWithoutPhoto ? "grid-cols-1" : "grid-cols-2"}`}>
+                <Select
+                  label="Type de problème"
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value as IncidentCategory);
+                    setAcceptedTriage(null);
+                  }}
+                >
+                  <option value={IncidentCategory.PLUMBING}>Plomberie</option>
+                  <option value={IncidentCategory.ELECTRICITY}>Électricité</option>
+                  <option value={IncidentCategory.ELEVATOR}>Ascenseur</option>
+                  <option value={IncidentCategory.CLEANING}>Nettoyage</option>
+                  <option value={IncidentCategory.SECURITY}>Sécurité</option>
+                  <option value={IncidentCategory.OTHER}>Autre</option>
+                </Select>
+
+                {!residentWithoutPhoto && (
+                  <Select
+                    label="Priorité"
+                    value={priority}
+                    onChange={(e) => {
+                      setPriority(e.target.value as Priority);
+                      setAcceptedTriage(null);
+                    }}
+                  >
+                    <option value={Priority.LOW}>Basse</option>
+                    <option value={Priority.MEDIUM}>Moyenne</option>
+                    <option value={Priority.HIGH}>Haute</option>
+                    <option value={Priority.URGENT}>Urgente</option>
+                  </Select>
+                )}
+              </div>
+
+              {residentWithoutPhoto && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Sans photo, vous n&apos;avez pas à choisir la priorité. Elle sera provisoirement enregistrée comme moyenne et pourra être réévaluée par le syndic.
+                </p>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="incident-description" className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
+                  Description détaillée
+                </label>
+                <textarea
+                  id="incident-description"
+                  rows={3}
+                  placeholder="Indiquez l'emplacement précis et l'ampleur du problème..."
+                  minLength={5}
+                  maxLength={2000}
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setAcceptedTriage(null);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  required
+                />
+              </div>
+
+              {photos.length > 0 && (
+                <AiTriagePanel
+                  title={title}
+                  description={description}
+                  files={aiFiles}
+                  onApply={(suggestion) => {
+                    setTitle(suggestion.title);
+                    setDescription(suggestion.description);
+                    setCategory(suggestion.category as IncidentCategory);
+                    setPriority(suggestion.priority as Priority);
+                  }}
+                  onSuggestionAccepted={setAcceptedTriage}
+                />
+              )}
+
+              <IncidentFormAssist
+                title={title}
+                description={description}
+                residenceId={residenceId}
+                onMatchesChange={handleDuplicateMatchesChange}
+                extraActions={(item) => (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <a
+                      href={`/incidents?incident=${encodeURIComponent(item.incidentId)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-300 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      Ouvrir le dossier
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setDuplicateDismissed(true)}
+                      className="inline-flex min-h-[40px] items-center rounded-lg border border-amber-300 px-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950/40"
+                    >
+                      Ce n&apos;est pas un doublon
+                    </button>
+                  </div>
+                )}
+                onApply={(suggestion) => {
+                  if (suggestion.title) setTitle(suggestion.title);
+                  setCategory(suggestion.category as IncidentCategory);
+                  if (!residentWithoutPhoto) setPriority(suggestion.priority as Priority);
+                  setAcceptedTriage(null);
+                }}
+              />
+            </section>
+
+            {strongDuplicateCount > 0 && !duplicateDismissed && (
+              <div
+                role="alert"
+                className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
               >
-                {residences.map((r) => (
-                  <option key={r._id} value={r._id}>
-                    {r.name} ({r.city})
-                  </option>
-                ))}
-              </Select>
+                {strongDuplicateCount} correspondance(s) forte(s) détectée(s).
+                Vérifiez le dossier existant avant d&apos;envoyer, ou confirmez qu&apos;il
+                ne s&apos;agit pas du même problème.
+                  <button
+                    type="button"
+                    onClick={() => setDuplicateDismissed(true)}
+                    className="mt-2 block min-h-[40px] rounded-lg border border-amber-400 px-3 text-xs font-semibold hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-950/60"
+                  >
+                    Confirmer : créer un nouveau signalement
+                  </button>
+              </div>
             )}
 
-            <Input
-              label="Titre de l'incident"
-              placeholder="Ex: Fuite d'eau au 2ème étage, panne ascenseur..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Catégorie"
-                value={category}
-                onChange={(e) => setCategory(e.target.value as IncidentCategory)}
-              >
-                <option value={IncidentCategory.PLUMBING}>Plomberie</option>
-                <option value={IncidentCategory.ELECTRICITY}>Électricité</option>
-                <option value={IncidentCategory.ELEVATOR}>Ascenseur</option>
-                <option value={IncidentCategory.CLEANING}>Nettoyage</option>
-                <option value={IncidentCategory.SECURITY}>Sécurité</option>
-                <option value={IncidentCategory.OTHER}>Autre</option>
-              </Select>
-
-              <Select
-                label="Priorité"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as Priority)}
-              >
-                <option value={Priority.LOW}>Basse</option>
-                <option value={Priority.MEDIUM}>Moyenne</option>
-                <option value={Priority.HIGH}>Haute</option>
-                <option value={Priority.URGENT}>Urgente</option>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
-                Description détaillée
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Indiquez l'emplacement précis et l'ampleur du problème..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                required
-              />
-            </div>
-
-            {/* Ajout de photo (Appareil photo mobile ou fichier, max 1 Mo) */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Photo du problème (compression canvas &le; 1 Mo, hors ligne)
+            <section className="space-y-3">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Preuves</h3>
+              <label className="block text-xs text-slate-500 dark:text-slate-400">
+                Photos du problème (compression &le; 1 Mo par photo, jusqu&apos;à 3; disponibles hors ligne)
               </label>
               <input
                 type="file"
@@ -913,43 +1370,47 @@ function IncidentsContent() {
                 className="hidden"
               />
 
-              <div className="flex flex-wrap items-center gap-2">
-                {photos.map((photo, i) => (
-                  <div
-                    key={i}
-                    className="relative h-20 w-20 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo}
-                      alt="Capture"
-                      className="h-full w-full object-cover"
-                    />
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: 3 }, (_, slotIndex) => {
+                  const photo = photos[slotIndex];
+                  if (photo) {
+                    return (
+                      <div
+                        key={slotIndex}
+                        className="relative aspect-square min-h-20 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photo} alt={`Photo du problème ${slotIndex + 1}`} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotos((previous) => previous.filter((_, index) => index !== slotIndex));
+                            setAiFiles((previous) => previous.filter((_, index) => index !== slotIndex));
+                            setAcceptedTriage(null);
+                          }}
+                          className="absolute right-1 top-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-900/80 text-white hover:bg-rose-600"
+                          aria-label={`Supprimer la photo ${slotIndex + 1}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
                     <button
+                      key={slotIndex}
                       type="button"
-                      onClick={() =>
-                        setPhotos((prev) => prev.filter((_, idx) => idx !== i))
-                      }
-                      className="absolute top-1 right-1 rounded-full bg-slate-900/80 p-1 text-white hover:bg-rose-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                      aria-label="Supprimer la photo"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex aspect-square min-h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-xs font-medium text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:bg-slate-800"
+                      aria-label={`Ajouter une photo, emplacement ${slotIndex + 1}`}
                     >
-                      <X className="h-3.5 w-3.5" />
+                      <Camera aria-hidden="true" className="h-5 w-5 text-sky-500" />
+                      <span>Ajouter</span>
                     </button>
-                  </div>
-                ))}
-
-                {photos.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 min-h-[44px]"
-                  >
-                    <Camera className="h-5 w-5 text-sky-500" />
-                    <span>Ajouter</span>
-                  </button>
-                )}
+                  );
+                })}
               </div>
-            </div>
+            </section>
 
             <AiDiagnosticButton
               photos={photos}
@@ -963,10 +1424,11 @@ function IncidentsContent() {
               }}
             />
 
-            <div className="pt-2">
+            <div className="sticky bottom-0 z-10 -mx-6 border-t border-slate-200 bg-white/95 px-6 pb-3 pt-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-1 sm:backdrop-blur-none">
               <Button
                 type="submit"
                 size="lg"
+                disabled={isSubmitting || (strongDuplicateCount > 0 && !duplicateDismissed)}
                 isLoading={isSubmitting}
                 className="w-full min-h-[44px]"
               >
@@ -974,14 +1436,16 @@ function IncidentsContent() {
               </Button>
             </div>
           </form>
-        </BottomSheet>
+          </BottomSheet>
+        )}
 
         {/* MODALE DÉTAIL DE L'INCIDENT (Bottom sheet sur mobile, modale centrée dès md:) */}
         {selectedIncident && (() => {
           const inc = selectedIncident;
-          const assignedToObj = inc.assignedTo as any;
+          const assignedToObj =
+            typeof inc.assignedTo === "object" && inc.assignedTo ? inc.assignedTo : undefined;
           const assignedToId =
-            typeof inc.assignedTo === "object" ? assignedToObj?._id : inc.assignedTo;
+            assignedToObj?._id ?? (typeof inc.assignedTo === "string" ? inc.assignedTo : undefined);
           const isAssignedTech =
             currentUser?.role === Role.TECHNICIAN &&
             Boolean(assignedToId) &&
@@ -1012,6 +1476,25 @@ function IncidentsContent() {
           const techPhone = typeof inc.assignedTo === "object" ? assignedToObj?.phone : null;
 
           const categoryLabel = CATEGORY_LABELS[inc.category] || inc.category;
+          const hasResolutionProof = Boolean(inc.resolutionSubmittedAt);
+          const canSubmitResolution =
+            inc.status === IncidentStatus.IN_PROGRESS && (isAssignedTech || canAssign);
+          const showResolutionTab =
+            currentUser?.role === Role.RESIDENT
+              ? hasResolutionProof
+              : Boolean(isAssignedTech || canAssign) &&
+                (hasResolutionProof || inc.status === IncidentStatus.IN_PROGRESS);
+          const tabs = [
+            { id: "overview" as const, label: "Aperçu", icon: ClipboardList },
+            { id: "history" as const, label: "Historique", icon: History },
+            { id: "discussion" as const, label: "Discussion", icon: MessageCircle },
+            ...(showResolutionTab
+              ? [{ id: "resolution" as const, label: "Résolution", icon: Wrench }]
+              : []),
+            ...(canAssign
+              ? [{ id: "ai" as const, label: "Contexte IA", icon: Sparkles }]
+              : []),
+          ];
 
           return (
             <div
@@ -1068,8 +1551,35 @@ function IncidentsContent() {
                   </span>
                 </div>
 
+                <div role="tablist" aria-label="Détails de la réclamation" className="flex gap-1 overflow-x-auto border-b border-slate-100 px-3 dark:border-slate-800">
+                  {tabs.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={selectedIncidentTab === id}
+                      onClick={() => setSelectedIncidentTab(id)}
+                      className={`inline-flex min-h-[48px] shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold transition-colors sm:text-sm ${
+                        selectedIncidentTab === id
+                          ? "border-sky-600 text-sky-700 dark:border-sky-400 dark:text-sky-300"
+                          : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Contenu déroulant */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                  {selectedIncidentTab === "overview" && (
+                  <div className="space-y-4">
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                    <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Progression</h3>
+                    <IncidentWorkflowTimeline status={inc.status} />
+                  </section>
+
                   {/* Description complète */}
                   <div className="space-y-1.5">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -1079,7 +1589,6 @@ function IncidentsContent() {
                       {inc.description || "Aucune description fournie."}
                     </p>
                   </div>
-
                   {/* Informations de localisation et signalement */}
                   <div className="grid grid-cols-1 gap-3 rounded-2xl bg-slate-50 p-3 sm:grid-cols-2 dark:bg-slate-800/40 text-xs">
                     <div>
@@ -1180,36 +1689,89 @@ function IncidentsContent() {
                     </div>
                   )}
 
-                  {/* Historique en liste verticale */}
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Historique du traitement
-                    </h3>
-                    <div className="space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-800 text-xs">
-                      {inc.reportedAt && (
-                        <div>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            Signalé le {formatFullDate(inc.reportedAt)}
-                          </p>
-                          <p className="text-[11px] text-slate-500">Par {reporterName}</p>
-                        </div>
+                  </div>
+                  )}
+                  {selectedIncidentTab === "history" && <IncidentHistory incidentId={inc._id} />}
+                  {selectedIncidentTab === "ai" && canAssign && (
+                    <IncidentAIContext
+                      incident={inc}
+                      residenceId={String(getProp(inc.residence, "_id") || inc.residence)}
+                      onInspect={(candidateId) => void inspectIncident(candidateId)}
+                      onPriorityApplied={(suggestedPriority) => {
+                        const updated = { ...inc, priority: suggestedPriority };
+                        setSelectedIncident(updated);
+                        setIncidents((items) => items.map((item) => item._id === inc._id ? updated : item));
+                      }}
+                      onResolutionCheckSaved={(check) => {
+                        const updates: Partial<IncidentDTO> = { aiResolutionCheck: check };
+                        setSelectedIncident((previous) =>
+                          previous ? { ...previous, ...updates } : previous
+                        );
+                        setIncidents((previous) =>
+                          previous.map((item) =>
+                            item._id === inc._id ? { ...item, ...updates } : item
+                          )
+                        );
+                      }}
+                      canVerify={canAssign}
+                      goToDiscussion={() => setSelectedIncidentTab("discussion")}
+                    />
+                  )}
+                  {selectedIncidentTab === "discussion" && (
+                    <IncidentComments incidentId={inc._id} currentUserId={currentUser?.id || ""} />
+                  )}
+                  {selectedIncidentTab === "resolution" && showResolutionTab && (
+                    <div className="space-y-5">
+                      {hasResolutionProof && (
+                        <ResolutionReview
+                          incidentId={inc._id}
+                          resolution={{ ...inc, resolutionPhotos: inc.resolutionPhotos ?? [] }}
+                          canRespond={currentUser?.role === Role.RESIDENT}
+                          onPhotoClick={setFullscreenPhoto}
+                          onUpdated={(data) => {
+                            const updates: Partial<IncidentDTO> = {
+                              status: data.status,
+                              resolvedAt: data.resolvedAt,
+                              resolutionDescription: data.resolutionDescription,
+                              resolutionPhotos: data.resolutionPhotos,
+                              resolutionSubmittedAt: data.resolutionSubmittedAt,
+                              resolutionConfirmedAt: data.resolutionConfirmedAt,
+                              resolutionRejectedAt: data.resolutionRejectedAt,
+                              resolutionFeedback: data.resolutionFeedback,
+                            };
+                            setSelectedIncident((previous) => previous ? { ...previous, ...updates } : previous);
+                            setIncidents((previous) => previous.map((item) =>
+                              item._id === inc._id ? { ...item, ...updates, status: updates.status ?? item.status } : item
+                            ));
+                          }}
+                        />
                       )}
-                      {techName && (
-                        <div>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            Assigné à {techName}
-                          </p>
-                        </div>
-                      )}
-                      {inc.resolvedAt && (
-                        <div>
-                          <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                            Résolu le {formatFullDate(inc.resolvedAt)}
-                          </p>
+                      {canSubmitResolution && (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                          <h3 className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
+                            {hasResolutionProof ? "Mettre à jour la preuve" : "Soumettre une preuve de résolution"}
+                          </h3>
+                          <ResolutionSubmissionForm
+                            incidentId={inc._id}
+                            onSubmitted={(data) => {
+                              const updates: Partial<IncidentDTO> = {
+                                resolutionDescription: data.resolutionDescription,
+                                resolutionPhotos: data.resolutionPhotos,
+                                resolutionSubmittedAt: data.resolutionSubmittedAt,
+                                resolutionConfirmedAt: data.resolutionConfirmedAt,
+                                resolutionRejectedAt: data.resolutionRejectedAt,
+                                resolutionFeedback: data.resolutionFeedback,
+                              };
+                              setSelectedIncident((previous) => previous ? { ...previous, ...updates } : previous);
+                              setIncidents((previous) => previous.map((item) =>
+                                item._id === inc._id ? { ...item, ...updates } : item
+                              ));
+                            }}
+                          />
                         </div>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Footer avec boutons d'actions */}
@@ -1317,8 +1879,10 @@ export default function IncidentsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
+        <div aria-label="Chargement des incidents" aria-busy="true" className="min-h-screen space-y-6 p-4 sm:p-8">
+          <div className="h-36 animate-pulse rounded-3xl bg-gradient-to-r from-slate-200 to-indigo-100 dark:from-slate-900 dark:to-indigo-950" />
+          <div className="h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-900" />
+          <div className="grid gap-4 sm:grid-cols-2">{[0, 1, 2, 3].map((item) => <div key={item} className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900" />)}</div>
         </div>
       }
     >
@@ -1326,4 +1890,3 @@ export default function IncidentsPage() {
     </Suspense>
   );
 }
-

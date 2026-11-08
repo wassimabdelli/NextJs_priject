@@ -1,7 +1,6 @@
 import { createCrudRoutes } from "@/lib/crud/createCrudRoutes";
 import { Incident } from "@/models/Incident";
 import { Residence } from "@/models/Residence";
-import { Apartment } from "@/models/Apartment";
 import {
   getResidentApartmentIds,
   getResidentResidenceIds,
@@ -11,27 +10,51 @@ import {
 import { incidentCreateSchema, incidentEditSchema } from "@/lib/validations/incident";
 import { Role } from "@/types/enums";
 import { HttpError } from "@/lib/api";
+import { recordIncidentHistory } from "@/lib/incidents/recordHistory";
+import { notifyIncidentHistory } from "@/lib/notifications/events";
+import { computeAndStoreEmbedding } from "@/lib/ai/similarity";
+import { GEMINI_MODEL } from "@/lib/ai/gemini";
+import { TriageSchema } from "@/lib/ai/triage";
+import {
+  INCIDENT_READ_ROLES,
+  isResidenceManagedBySyndic,
+  technicianIncidentScope,
+} from "@/lib/incidents/access-policy";
 
 export const incidentCrudRoutes = createCrudRoutes({
   model: Incident,
   createSchema: incidentCreateSchema,
   updateSchema: incidentEditSchema,
   access: {
-    // Tous les rôles peuvent lire (scopé) et créer
-    read: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
+    read: [...INCIDENT_READ_ROLES],
     create: [Role.ADMIN, Role.SYNDIC, Role.RESIDENT, Role.TECHNICIAN],
     update: [Role.ADMIN, Role.SYNDIC],
     delete: [Role.ADMIN, Role.SYNDIC],
   },
   searchFields: ["title", "description"],
   defaultSort: { reportedAt: -1 },
+  allowedSortFields: ["reportedAt", "createdAt", "priority", "status"],
   populate: [
     { path: "residence", select: "name city" },
     { path: "apartment", select: "number floor" },
     { path: "reportedBy", select: "name email" },
     { path: "assignedTo", select: "name email phone" },
   ],
-  filterFields: ["residence", "category", "priority", "status"],
+  filterFields: ["residence", "category", "priority", "status", "assignedTo"],
+  dateField: "createdAt",
+  exportColumns: [
+    { key: "title", label: "Réclamation" },
+    { key: "category", label: "Catégorie" },
+    { key: "priority", label: "Priorité" },
+    { key: "status", label: "Statut" },
+    { key: "residence.name", label: "Résidence" },
+    { key: "assignedTo.name", label: "Technicien" },
+    { key: "createdAt", label: "Date de création" },
+  ],
+  exportPopulate: [
+    { path: "residence", select: "name" },
+    { path: "assignedTo", select: "name" },
+  ],
 
   scope: async (user) => {
     // 1. ADMIN : accès global
@@ -45,7 +68,7 @@ export const incidentCrudRoutes = createCrudRoutes({
     }
     // 3. TECHNICIAN : uniquement les incidents qui lui sont assignés
     if (user.role === Role.TECHNICIAN) {
-      return { assignedTo: user.id };
+      return technicianIncidentScope(user.id);
     }
     // 4. RESIDENT : uniquement ses incidents signalés
     if (user.role === Role.RESIDENT) {
@@ -54,11 +77,26 @@ export const incidentCrudRoutes = createCrudRoutes({
     return {};
   },
 
-  injectOnCreate: async (user) => {
+  injectOnCreate: async (user, body) => {
     // Règle de sécurité stricte : reportedBy est TOUJOURS session.user.id
+    const parsedTriage = TriageSchema.safeParse(body?.aiTriage);
+    const aiTriage = parsedTriage.success
+      ? {
+          category: parsedTriage.data.category,
+          priority: parsedTriage.data.priority,
+          specialty: parsedTriage.data.specialty,
+          probableCause: parsedTriage.data.probableCause,
+          safetyRisk: parsedTriage.data.safetyRisk,
+          confidence: parsedTriage.data.confidence,
+          model: process.env.GEMINI_API_KEY
+            ? GEMINI_MODEL
+            : process.env.GROQ_MODEL ?? "openai/gpt-oss-120b",
+        }
+      : undefined;
     return {
       reportedBy: user.id,
       syncedAt: new Date(),
+      ...(aiTriage ? { aiTriage } : {}),
     };
   },
 
@@ -70,7 +108,7 @@ export const incidentCrudRoutes = createCrudRoutes({
 
     if (user.role === Role.SYNDIC) {
       const syndicResidences = await getSyndicResidenceIds(user.id);
-      if (!syndicResidences.includes(String(body.residence))) {
+      if (!isResidenceManagedBySyndic(String(body.residence), syndicResidences)) {
         throw new HttpError(403, "Vous n'administrez pas cette résidence");
       }
     }
@@ -103,5 +141,20 @@ export const incidentCrudRoutes = createCrudRoutes({
         );
       }
     }
+  },
+  afterCreate: async (doc, user) => {
+    void computeAndStoreEmbedding(String(doc._id), {
+      title: doc.title,
+      description: doc.description,
+    }).catch((error: unknown) => {
+      console.warn("[ai] failed to schedule incident embedding", error);
+    });
+    const history = await recordIncidentHistory({
+      incidentId: doc._id,
+      actorId: user.id,
+      action: "CREATED",
+      description: "Incident signalé",
+    });
+    await notifyIncidentHistory(String(history._id), String(doc._id), "CREATED", user.id);
   },
 });

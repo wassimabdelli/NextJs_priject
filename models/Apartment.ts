@@ -9,6 +9,8 @@ export interface IApartment {
   shares: number;
   isOccupied: boolean;
   owner?: Types.ObjectId;
+  resident?: Types.ObjectId;
+  residentUser?: Types.ObjectId;
 }
 
 interface ApartmentStatics {
@@ -32,6 +34,8 @@ const ApartmentSchema = new Schema<IApartment, ApartmentModel, {}, {}, {}, Apart
     shares: { type: Number, required: true, min: 0 },
     isOccupied: { type: Boolean, default: false },
     owner: { type: Schema.Types.ObjectId, ref: "User" },
+    resident: { type: Schema.Types.ObjectId, ref: "Resident" },
+    residentUser: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

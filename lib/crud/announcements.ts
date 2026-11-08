@@ -1,12 +1,16 @@
 import { createCrudRoutes } from "@/lib/crud/createCrudRoutes";
 import { Announcement } from "@/models/Announcement";
-import { Apartment } from "@/models/Apartment";
-import { getResidentApartmentIds, getSyndicResidenceIds } from "@/lib/auth-guard";
+import {
+  getResidentResidenceIds,
+  getSyndicResidenceIds,
+  getTechnicianResidenceIds,
+} from "@/lib/auth-guard";
 import {
   announcementCreateSchema,
   announcementUpdateSchema,
 } from "@/lib/validations/announcement";
 import { Role } from "@/types/enums";
+import { HttpError } from "@/lib/api";
 
 /**
  * Configuration CRUD de référence pour l'entité Announcement.
@@ -44,13 +48,15 @@ export const announcementCrudRoutes = createCrudRoutes({
     }
     // 3. RESIDENT : résidences où le résident possède ou occupe un appartement
     if (user.role === Role.RESIDENT) {
-      const apartmentIds = await getResidentApartmentIds(user.id);
-      const residenceIds = await Apartment.find({ _id: { $in: apartmentIds } }).distinct(
-        "residence"
-      );
+      const residenceIds = await getResidentResidenceIds(user.id);
       return { residence: { $in: residenceIds } };
     }
-    return {};
+    // 4. TECHNICIAN : résidences liées aux interventions qui lui sont assignées
+    if (user.role === Role.TECHNICIAN) {
+      const residenceIds = await getTechnicianResidenceIds(user.id);
+      return { residence: { $in: residenceIds } };
+    }
+    throw new HttpError(403, "Rôle non autorisé");
   },
   injectOnCreate: async (user) => {
     // Règle SyndicPro : author provient toujours de la session sécurisée

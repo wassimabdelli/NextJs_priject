@@ -6,6 +6,8 @@ import { User } from "@/models/User";
 import { incidentAssignSchema } from "@/lib/validations/incident";
 import { Role, IncidentStatus } from "@/types/enums";
 import { canTransition } from "@/lib/incidents/workflow";
+import { recordIncidentHistory } from "@/lib/incidents/recordHistory";
+import { notifyIncidentHistory } from "@/lib/notifications/events";
 
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
@@ -50,6 +52,9 @@ export const PATCH = withAuth(
       throw new HttpError(400, "L'utilisateur assigné doit posséder le rôle TECHNICIAN");
     }
 
+    const previousAssignedTo = incident.assignedTo?.toString();
+    const previousStatus = incident.status;
+
     // Si statut REPORTED -> transition automatique vers ASSIGNED
     if (incident.status === IncidentStatus.REPORTED) {
       if (!canTransition(IncidentStatus.REPORTED, IncidentStatus.ASSIGNED)) {
@@ -60,6 +65,32 @@ export const PATCH = withAuth(
 
     incident.assignedTo = technician._id;
     await incident.save();
+
+    if (previousAssignedTo !== technician._id.toString()) {
+      const previousTechnician = previousAssignedTo
+        ? await User.findById(previousAssignedTo).select("name").lean()
+        : null;
+      const history = await recordIncidentHistory({
+        incidentId: incident._id,
+        actorId: user.id,
+        action: "ASSIGNED",
+        description: `Technicien assigné : ${technician.name}`,
+        oldValue: previousTechnician?.name,
+        newValue: technician.name,
+      });
+      await notifyIncidentHistory(String(history._id), String(incident._id), "ASSIGNED", user.id);
+    }
+    if (previousStatus !== incident.status) {
+      const history = await recordIncidentHistory({
+        incidentId: incident._id,
+        actorId: user.id,
+        action: "STATUS_CHANGED",
+        description: `Statut modifié : ${previousStatus} → ${incident.status}`,
+        oldValue: previousStatus,
+        newValue: incident.status,
+      });
+      await notifyIncidentHistory(String(history._id), String(incident._id), "STATUS_CHANGED", user.id);
+    }
 
     await incident.populate([
       { path: "residence", select: "name city" },

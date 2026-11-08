@@ -1,0 +1,1 @@
+export const DEFAULT_INCIDENT_OVERDUE_HOURS = 72;

@@ -4,6 +4,10 @@
  */
 import type {
   ChargeStatus,
+  AnnouncementAudience,
+  AnnouncementCategory,
+  AnnouncementPriority,
+  AnnouncementStatus,
   IncidentCategory,
   IncidentStatus,
   PaymentMethod,
@@ -79,6 +83,27 @@ export interface IncidentDTO {
   status: IncidentStatus;
   reportedAt: string;
   resolvedAt?: string;
+  resolutionDescription?: string;
+  resolutionPhotos?: string[];
+  resolutionSubmittedAt?: string;
+  resolutionConfirmedAt?: string;
+  resolutionRejectedAt?: string;
+  resolutionFeedback?: string;
+  aiTriage?: {
+    category?: string;
+    priority?: string;
+    specialty?: string;
+    probableCause?: string;
+    safetyRisk?: boolean;
+    confidence?: number;
+    model?: string;
+  };
+  aiResolutionCheck?: {
+    verdict?: string;
+    explanation?: string;
+    confidence?: number;
+    checkedAt?: string;
+  };
   createdOffline: boolean;
   clientId?: string;
   /** Côté client uniquement : incident encore dans la file d'attente */
@@ -87,12 +112,26 @@ export interface IncidentDTO {
 
 export interface AnnouncementDTO {
   _id: string;
-  residence: string;
+  residence: string | { _id: string; name: string; city?: string };
   author?: { _id: string; name: string } | string;
   title: string;
   content: string;
   publishedAt: string;
   isPinned: boolean;
+  category?: AnnouncementCategory;
+  priority?: AnnouncementPriority;
+  audience?: AnnouncementAudience;
+  status?: AnnouncementStatus;
+  scheduledAt?: string | null;
+  expiresAt?: string | null;
+  attachments?: Array<{ name: string; url: string; mimeType: string; size: number }>;
+  isRead?: boolean;
+  readStats?: {
+    totalEligibleResidents: number;
+    readCount: number;
+    unreadCount: number;
+    readPercentage: number;
+  };
 }
 
 export interface DocumentDTO {

@@ -5,6 +5,9 @@ import { Incident } from "@/models/Incident";
 import { incidentStatusSchema } from "@/lib/validations/incident";
 import { Role, IncidentStatus } from "@/types/enums";
 import { canTransition } from "@/lib/incidents/workflow";
+import { recordIncidentHistory } from "@/lib/incidents/recordHistory";
+import { notifyIncidentHistory } from "@/lib/notifications/events";
+import { INCIDENT_WORKFLOW_ROLES } from "@/lib/incidents/access-policy";
 
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
@@ -58,6 +61,7 @@ export const PATCH = withAuth(
       );
     }
 
+    const previousStatus = incident.status;
     incident.status = targetStatus;
 
     // Règle métier : resolvedAt posé à RESOLVED
@@ -68,6 +72,15 @@ export const PATCH = withAuth(
     }
 
     await incident.save();
+    const history = await recordIncidentHistory({
+      incidentId: incident._id,
+      actorId: user.id,
+      action: "STATUS_CHANGED",
+      description: `Statut modifié : ${previousStatus} → ${targetStatus}`,
+      oldValue: previousStatus,
+      newValue: targetStatus,
+    });
+    await notifyIncidentHistory(String(history._id), String(incident._id), "STATUS_CHANGED", user.id);
 
     await incident.populate([
       { path: "residence", select: "name city" },
@@ -78,5 +91,5 @@ export const PATCH = withAuth(
 
     return json(incident.toObject ? incident.toObject() : incident, 200);
   },
-  { roles: [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN] }
+  { roles: [...INCIDENT_WORKFLOW_ROLES] }
 );

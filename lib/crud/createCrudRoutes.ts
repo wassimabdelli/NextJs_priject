@@ -32,6 +32,7 @@ export interface CrudRouteConfig<T = any> {
   afterList?: (data: any[], req: NextRequest, user: AuthUser) => Promise<any> | any;
   searchFields?: string[];
   defaultSort?: Record<string, 1 | -1> | string;
+  allowedSortFields?: string[];
   populate?: any;
   filterFields?: string[];
   dateField?: string;
@@ -182,7 +183,7 @@ export function createCrudRoutes<T = any>(config: CrudRouteConfig<T>) {
     const sortParam = searchParams.get("sort");
     if (sortParam) {
       const [field, direction] = sortParam.split(":");
-      if (field) {
+      if (field && (!config.allowedSortFields || config.allowedSortFields.includes(field))) {
         sortOption = { [field]: direction === "asc" ? 1 : -1 };
       }
     }
