@@ -15,17 +15,20 @@ import {
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { DataChatbot } from "@/components/ai/DataChatbot";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { getOfflineDB, type OutboxItem } from "@/lib/offline/db";
 
 export default function MorePage() {
   const { isOnline, pendingCount, isSyncing, syncNow, refreshPendingCount } =
     useOnlineStatus();
+  const [mounted, setMounted] = useState(false);
   const [swActive, setSwActive] = useState<boolean | null>(null);
   const [outboxItems, setOutboxItems] = useState<OutboxItem[]>([]);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistration().then((reg) => {
         setSwActive(!!reg?.active);
@@ -64,10 +67,15 @@ export default function MorePage() {
       db.outbox.clear(),
     ]);
 
+    if ("caches" in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
+    }
+
     await refreshPendingCount();
     setOutboxItems([]);
-    setClearMessage("Cache local vidé avec succès.");
-    setTimeout(() => setClearMessage(null), 3000);
+    setClearMessage("Cache local vidé avec succès. Rechargement...");
+    setTimeout(() => window.location.reload(), 800);
   };
 
   return (
@@ -88,6 +96,13 @@ export default function MorePage() {
             <span>{clearMessage}</span>
           </div>
         )}
+
+        {/* ======================================================== */}
+        {/* ASSISTANT IA : CHATBOT DATA SYNDIC                        */}
+        {/* ======================================================== */}
+        <div id="chatbot-data">
+          <DataChatbot />
+        </div>
 
         {/* ======================================================== */}
         {/* GRILLE D'ACCÈS AUX MODULES                               */}
@@ -216,6 +231,13 @@ export default function MorePage() {
               <span className="font-bold text-sm text-slate-900 dark:text-white">API Swagger</span>
               <span className="text-[11px] text-slate-500">Documentation OpenAPI</span>
             </a>
+            <a
+              href="#chatbot-data"
+              className="flex flex-col gap-1 rounded-2xl border border-sky-300 bg-sky-50/70 p-3.5 shadow-sm transition-all hover:border-sky-500 hover:shadow-md dark:border-sky-800 dark:bg-sky-950/40"
+            >
+              <span className="font-bold text-sm text-sky-700 dark:text-sky-300">Chatbot Data IA</span>
+              <span className="text-[11px] text-sky-600/80 dark:text-sky-400">Questions sur stock, charges & incidents</span>
+            </a>
           </div>
         </div>
 
@@ -229,10 +251,10 @@ export default function MorePage() {
               <div className="flex items-center gap-3">
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-xl text-white ${
-                    isOnline ? "bg-emerald-500" : "bg-amber-500"
+                    !mounted || isOnline ? "bg-emerald-500" : "bg-amber-500"
                   }`}
                 >
-                  {isOnline ? (
+                  {!mounted || isOnline ? (
                     <Wifi className="h-5 w-5" />
                   ) : (
                     <WifiOff className="h-5 w-5" />
@@ -243,7 +265,7 @@ export default function MorePage() {
                     Connectivité réseau
                   </h3>
                   <p className="text-xs text-slate-500">
-                    {isOnline
+                    {!mounted || isOnline
                       ? "En ligne — Connecté à l'API SyndicPro"
                       : "Hors ligne — Stockage local Dexie actif"}
                   </p>

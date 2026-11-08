@@ -7,7 +7,7 @@
  * 3. Stratégies de mise en cache adaptées par type de requête (Network-first, Cache-first, Stale-while-revalidate)
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE_NAME = `syndicpro-${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `syndicpro-static-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `syndicpro-data-${CACHE_VERSION}`;
@@ -96,7 +96,7 @@ self.addEventListener("fetch", (event) => {
     return; // Laisse passer directement au réseau sans interférence du service worker
   }
 
-  // REGLE 2 : Assets statiques Next.js (_next/static, polices, images, icônes) -> Cache-first
+  // REGLE 2 : Assets statiques Next.js (_next/static, polices, images, icônes) -> Network-first avec repli cache (évite de bloquer les mises à jour JS en dev)
   const isStaticAsset =
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
@@ -107,11 +107,8 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(request).then((networkResponse) => {
+      fetch(request)
+        .then((networkResponse) => {
           if (
             networkResponse &&
             networkResponse.status === 200 &&
@@ -124,8 +121,10 @@ self.addEventListener("fetch", (event) => {
             });
           }
           return networkResponse;
-        });
-      })
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
     );
     return;
   }
@@ -206,16 +205,28 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Par défaut pour les autres requêtes GET
+  // Par défaut pour les autres requêtes GET (ex: payloads RSC _rsc) -> Network-first avec repli cache
   event.respondWith(
-    caches.match(request).then((cached) => {
-      return (
-        cached ||
-        fetch(request).catch(() => {
-          return new Response("", { status: 408 });
-        })
-      );
-    })
+    fetch(request)
+      .then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          !networkResponse.redirected &&
+          !networkResponse.url.includes("/login")
+        ) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(request).then((cached) => {
+          return cached || new Response("", { status: 408 });
+        });
+      })
   );
 });
 
