@@ -16,18 +16,35 @@ export interface AuthUser {
 
 /**
  * Récupère l'utilisateur connecté via la session JWT Auth.js.
- * Lève une exception HttpError(401) si l'utilisateur n'est pas authentifié.
+ * Tolère un JWT obsolète après reseed Mongo (lookup id puis email).
  */
 export async function requireAuth(): Promise<AuthUser> {
   const session = await auth();
   if (!session?.user?.id) {
     throw new HttpError(401, "Authentification requise");
   }
+
+  const { User } = await import("@/models/User");
+  let dbUser = await User.findById(session.user.id)
+    .select("name email role")
+    .lean();
+  if (!dbUser && session.user.email) {
+    dbUser = await User.findOne({ email: session.user.email.toLowerCase() })
+      .select("name email role")
+      .lean();
+  }
+  if (!dbUser) {
+    throw new HttpError(
+      401,
+      "Session obsolète — reconnectez-vous (base reseedée)."
+    );
+  }
+
   return {
-    id: session.user.id,
-    name: session.user.name,
-    email: session.user.email,
-    role: session.user.role as Role,
+    id: String(dbUser._id),
+    name: session.user.name ?? dbUser.name,
+    email: session.user.email ?? dbUser.email,
+    role: (dbUser.role as Role) || (session.user.role as Role),
   };
 }
 

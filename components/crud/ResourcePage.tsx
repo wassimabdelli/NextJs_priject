@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { RefreshCw, AlertCircle, Download } from "lucide-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { FilterBar } from "@/components/crud/FilterBar";
@@ -239,8 +238,8 @@ function ResourcePageInner<T extends { _id?: string; id?: string }>({
     }
   };
 
+  // Le chrome AppLayout est fourni par les ClientPage redesign — pas de double layout.
   return (
-    <AppLayout>
       <div className="space-y-6">
         <PageHeader
           eyebrow={eyebrow || "Ressource"}
@@ -356,7 +355,6 @@ function ResourcePageInner<T extends { _id?: string; id?: string }>({
           }}
         />
       </div>
-    </AppLayout>
   );
 }
 
@@ -366,13 +364,11 @@ export function ResourcePage<T extends { _id?: string; id?: string }>(
   return (
     <Suspense
       fallback={
-        <AppLayout>
           <div className="space-y-4 py-4">
             <div className="h-8 w-48 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
             <div className="h-11 w-full animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
             <div className="h-64 w-full animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
           </div>
-        </AppLayout>
       }
     >
       <ResourcePageInner {...props} />

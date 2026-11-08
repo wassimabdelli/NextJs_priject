@@ -1,14 +1,22 @@
-"use client";
+import { Suspense } from "react";
+import ClientPage from "./ClientPage";
 
-import { ResourcePage } from "@/components/crud/ResourcePage";
-import { voteConfig } from "@/lib/resources/registry";
-
-export default function VotesPage() {
+function Fallback() {
   return (
-    <ResourcePage
-      config={voteConfig}
-      title="Bulletins de Vote"
-      description="Consultation et expression des votes par lot selon les tantièmes de copropriété."
-    />
+    <div className="flex min-h-dvh items-center justify-center bg-[#f4f7fb]">
+      <div
+        className="size-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"
+        role="status"
+        aria-label="Chargement"
+      />
+    </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<Fallback />}>
+      <ClientPage />
+    </Suspense>
   );
 }

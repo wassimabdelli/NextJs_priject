@@ -12,7 +12,7 @@ interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
 }
 
-const MAX_BYTES = 25 * 1024 * 1024; // 25 Mo (limite pratique Gemini inline)
+const MAX_BYTES = 100 * 1024 * 1024; // 100 Mo (aligné proxyClientMaxBodySize)
 const ALLOWED = new Set([
   "audio/webm",
   "video/webm",
@@ -64,7 +64,7 @@ export const POST = withAuth(
         throw new HttpError(400, "Fichier vide (0 octet) — utilise l'autre enregistrement");
       }
       if (blob.size > MAX_BYTES) {
-        throw new HttpError(400, "Fichier trop volumineux (max 25 Mo)");
+        throw new HttpError(400, "Fichier trop volumineux (max 100 Mo)");
       }
       buffer = Buffer.from(await blob.arrayBuffer());
     } else {
@@ -80,7 +80,7 @@ export const POST = withAuth(
       buffer = Buffer.from(b64, "base64");
       if (buffer.length === 0) throw new HttpError(400, "Fichier vide");
       if (buffer.length > MAX_BYTES) {
-        throw new HttpError(400, "Fichier trop volumineux (max 25 Mo)");
+        throw new HttpError(400, "Fichier trop volumineux (max 100 Mo)");
       }
     }
 

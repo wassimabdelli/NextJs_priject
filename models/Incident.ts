@@ -40,6 +40,30 @@ export interface IIncident {
   createdOffline: boolean;
   clientId?: string;
   syncedAt?: Date;
+  resolutionDescription?: string;
+  resolutionPhotos: string[];
+  resolutionSubmittedAt?: Date;
+  resolutionConfirmedAt?: Date;
+  resolutionRejectedAt?: Date;
+  resolutionFeedback?: string;
+  relatedIncidents: Types.ObjectId[];
+  dismissedDuplicates: Types.ObjectId[];
+  embedding?: number[];
+  aiTriage?: {
+    category?: string;
+    priority?: string;
+    specialty?: string;
+    probableCause?: string;
+    safetyRisk?: boolean;
+    confidence?: number;
+    model?: string;
+  };
+  aiResolutionCheck?: {
+    verdict?: string;
+    explanation?: string;
+    confidence?: number;
+    checkedAt?: Date;
+  };
 }
 
 export interface IIncidentMethods {
@@ -83,6 +107,42 @@ const IncidentSchema = new Schema<IIncident, IncidentModel, IIncidentMethods>(
     createdOffline: { type: Boolean, default: false },
     clientId: { type: String, unique: true, sparse: true },
     syncedAt: { type: Date },
+    resolutionDescription: { type: String, trim: true, maxlength: 2000 },
+    resolutionPhotos: { type: [String], default: [] },
+    resolutionSubmittedAt: { type: Date },
+    resolutionConfirmedAt: { type: Date },
+    resolutionRejectedAt: { type: Date },
+    resolutionFeedback: { type: String, trim: true, maxlength: 1000 },
+    relatedIncidents: { type: [{ type: Schema.Types.ObjectId, ref: "Incident" }], default: [] },
+    dismissedDuplicates: { type: [{ type: Schema.Types.ObjectId, ref: "Incident" }], default: [] },
+    embedding: { type: [Number], select: false, default: undefined },
+    aiTriage: {
+      type: new Schema(
+        {
+          category: String,
+          priority: String,
+          specialty: String,
+          probableCause: String,
+          safetyRisk: Boolean,
+          confidence: Number,
+          model: String,
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
+    aiResolutionCheck: {
+      type: new Schema(
+        {
+          verdict: String,
+          explanation: String,
+          confidence: Number,
+          checkedAt: Date,
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true }
 );

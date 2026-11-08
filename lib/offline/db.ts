@@ -30,6 +30,12 @@ export interface OutboxItem {
   error?: string;
 }
 
+export interface AnnouncementFeedSnapshot {
+  key: string;
+  data: unknown;
+  updatedAt: string;
+}
+
 export class SyndicProDatabase extends Dexie {
   residences!: Table<ResidenceDTO, string>;
   apartments!: Table<ApartmentDTO, string>;
@@ -40,6 +46,7 @@ export class SyndicProDatabase extends Dexie {
   outbox!: Table<OutboxItem, string>;
   session!: Table<OfflineSessionProfile, string>;
   dashboard!: Table<{ id: string; data: any; updatedAt: string }, string>;
+  announcementFeeds!: Table<AnnouncementFeedSnapshot, string>;
 
   constructor() {
     super("SyndicProDB");
@@ -58,6 +65,9 @@ export class SyndicProDatabase extends Dexie {
     });
     this.version(3).stores({
       dashboard: "id",
+    });
+    this.version(4).stores({
+      announcementFeeds: "key, updatedAt",
     });
   }
 }

@@ -6,6 +6,39 @@ import { User } from "@/models/User";
 import { ElectionPhase, Role } from "@/types/enums";
 
 /**
+ * Affecte le gagnant comme syndic de la résidence.
+ * Rétrograde l'ancien syndic en OWNER s'il ne gère plus aucune résidence.
+ */
+async function assignElectionWinnerAsSyndic(
+  residenceId: unknown,
+  winnerUser: { _id: unknown; role: string; save: () => Promise<unknown> }
+) {
+  const residence = await Residence.findById(residenceId).select("syndic");
+  const previousSyndicId = residence?.syndic ? String(residence.syndic) : null;
+  const winnerId = String(winnerUser._id);
+
+  await Residence.findByIdAndUpdate(residenceId, { syndic: winnerUser._id });
+
+  if (winnerUser.role === Role.OWNER) {
+    winnerUser.role = Role.SYNDIC;
+    await winnerUser.save();
+  }
+
+  if (previousSyndicId && previousSyndicId !== winnerId) {
+    const stillManages = await Residence.exists({
+      syndic: previousSyndicId,
+      _id: { $ne: residenceId },
+    });
+    if (!stillManages) {
+      await User.findOneAndUpdate(
+        { _id: previousSyndicId, role: Role.SYNDIC },
+        { role: Role.OWNER }
+      );
+    }
+  }
+}
+
+/**
  * Vérifie et effectue les transitions automatiques de phase selon l'horodatage.
  */
 export async function checkAndProgressElection(election: any) {
@@ -78,16 +111,7 @@ export async function checkAndProgressElection(election: any) {
           votesWeight: tally[0].weight,
         };
 
-        // Mise à jour de la résidence avec le nouveau syndic
-        await Residence.findByIdAndUpdate(election.residence, {
-          syndic: winnerUser._id,
-        });
-
-        // Mise à jour du rôle utilisateur si nécessaire
-        if (winnerUser.role === Role.OWNER) {
-          winnerUser.role = Role.SYNDIC;
-          await winnerUser.save();
-        }
+        await assignElectionWinnerAsSyndic(election.residence, winnerUser);
       }
     } else if (election.candidates && election.candidates.length === 1) {
       // Un seul candidat sans vote : élu par défaut
@@ -100,9 +124,7 @@ export async function checkAndProgressElection(election: any) {
           votesCount: 0,
           votesWeight: 0,
         };
-        await Residence.findByIdAndUpdate(election.residence, {
-          syndic: winnerUser._id,
-        });
+        await assignElectionWinnerAsSyndic(election.residence, winnerUser);
       }
     }
 

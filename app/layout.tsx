@@ -1,23 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { RedesignProvider } from "@/lib/redesign/store";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
   title: "SyndicPro — Gestion de Copropriété Moderne",
-  description: "Application PWA moderne et hors ligne pour syndics, copropriétaires et résidents.",
+  description:
+    "Plateforme moderne de gestion de copropriété : finances, incidents, AG, votes et communication résidents.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -34,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0ea5e9",
+  themeColor: "#2563eb",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -48,13 +52,15 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakarta.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="flex min-h-dvh flex-col bg-[#f4f5f7] font-sans text-slate-900 selection:bg-sky-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <body className="flex min-h-dvh flex-col overflow-x-hidden bg-[#f4f7fb] font-sans text-slate-800 selection:bg-blue-600 selection:text-white dark:bg-[#080d1a] dark:text-slate-100">
         <OfflineBanner />
         <ServiceWorkerRegister />
         <InstallPrompt />
-        <div className="flex min-h-dvh flex-1 flex-col">{children}</div>
+        <RedesignProvider>
+          <div className="flex min-h-dvh flex-1 flex-col">{children}</div>
+        </RedesignProvider>
       </body>
     </html>
   );

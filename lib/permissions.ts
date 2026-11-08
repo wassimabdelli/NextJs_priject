@@ -38,6 +38,12 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   "/more": [Role.ADMIN, Role.SYNDIC, Role.OWNER, Role.TENANT, Role.TECHNICIAN],
   "/api-docs": [Role.ADMIN, Role.SYNDIC],
   "/api/openapi": [Role.ADMIN, Role.SYNDIC],
+  "/equipment": [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN],
+  "/maintenance": [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN],
+  "/stock": [Role.ADMIN, Role.SYNDIC, Role.TECHNICIAN],
+  "/employees": [Role.ADMIN, Role.SYNDIC],
+  "/shifts": [Role.ADMIN, Role.SYNDIC],
+  "/leaves": [Role.ADMIN, Role.SYNDIC],
 };
 
 /**
@@ -57,7 +63,13 @@ export type Resource =
   | "meeting"
   | "resolution"
   | "document"
-  | "vote";
+  | "vote"
+  | "equipment"
+  | "maintenance"
+  | "stock"
+  | "employee"
+  | "shift"
+  | "leave";
 
 
 /**
@@ -124,6 +136,19 @@ export function can(role: Role, action: Action, resource: Resource): boolean {
       }
       return false;
 
+    case "equipment":
+    case "stock":
+    case "maintenance":
+      if (role === Role.SYNDIC) return true;
+      if (role === Role.TECHNICIAN) {
+        return action === "read" || action === "update";
+      }
+      return false;
+
+    case "employee":
+    case "shift":
+    case "leave":
+      return role === Role.SYNDIC;
 
     default:
       return false;
@@ -145,4 +170,56 @@ export function isRouteAllowed(pathname: string, role: Role): boolean {
   }
 
   return ROUTE_ACCESS[matchingPrefix].includes(role);
+}
+
+/** Onglets redesign → chemin (aligné sur lib/redesign/store TAB_PATHS). */
+export const TAB_ROUTE: Record<string, string> = {
+  dashboard: "/dashboard",
+  charges: "/charges",
+  expenses: "/expenses",
+  incidents: "/incidents",
+  meetings: "/meetings",
+  resolutions: "/resolutions",
+  elections: "/elections",
+  payments: "/payments",
+  apartments: "/apartments",
+  residents: "/residents",
+  documents: "/documents",
+  announcements: "/announcements",
+  wallet: "/wallet",
+  notifications: "/notifications",
+  profile: "/profile",
+  more: "/more",
+  join: "/join",
+  "join-requests": "/join-requests",
+  votes: "/votes",
+  users: "/users",
+  residences: "/residences",
+  employees: "/employees",
+  shifts: "/shifts",
+  leaves: "/leaves",
+  equipment: "/equipment",
+  maintenance: "/maintenance",
+  stock: "/stock",
+  "api-docs": "/api-docs",
+};
+
+/** True si l'onglet/module doit apparaître dans la navigation pour ce rôle. */
+export function canAccessTab(role: Role | null | undefined, tabId: string): boolean {
+  if (!role) return false;
+  const path = TAB_ROUTE[tabId];
+  if (!path) return false;
+  return isRouteAllowed(path, role);
+}
+
+/** True si le rôle peut exprimer un vote (AG / élections). */
+export function canCastVote(role: Role | null | undefined): boolean {
+  if (!role) return false;
+  return can(role, "create", "vote");
+}
+
+/** True si le rôle peut signaler un nouvel incident. */
+export function canReportIncident(role: Role | null | undefined): boolean {
+  if (!role) return false;
+  return can(role, "create", "incident");
 }

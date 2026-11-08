@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   ],
   experimental: {
     agentFeedback: true,
+    // Uploads AG (enregistrements Jitsi) — défaut Next = 10mb, trop bas
+    proxyClientMaxBodySize: "100mb",
   },
   cacheComponents: true,
   partialPrefetching: true,

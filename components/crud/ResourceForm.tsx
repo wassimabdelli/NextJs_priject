@@ -93,10 +93,27 @@ export function ResourceForm<T = any>({
             const items = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
             const valueKey = rel.valueField || "_id";
 
-            optionsMap[field.name] = items.map((item: any) => ({
-              label: String(item[rel.labelField] || item.name || item.title || item._id),
-              value: String(item[valueKey] || item._id),
-            }));
+            optionsMap[field.name] = items.map((item: any) => {
+              const base = String(
+                item[rel.labelField] || item.name || item.title || item._id
+              );
+              // Lots : préfixe "Lot" + résidence si peuplée
+              if (field.name === "apartment" || rel.resource === "apartments") {
+                const residenceName =
+                  item.residence && typeof item.residence === "object"
+                    ? item.residence.name
+                    : undefined;
+                const lotLabel = base.startsWith("Lot ") ? base : `Lot ${base}`;
+                return {
+                  label: residenceName ? `${lotLabel} — ${residenceName}` : lotLabel,
+                  value: String(item[valueKey] || item._id),
+                };
+              }
+              return {
+                label: base,
+                value: String(item[valueKey] || item._id),
+              };
+            });
           } catch (err) {
             console.warn(`[ResourceForm] Erreur chargement relation ${field.name}:`, err);
             optionsMap[field.name] = [];
@@ -268,14 +285,14 @@ export function ResourceForm<T = any>({
             );
           }
 
-          // 4. BOOLEAN (SWITCH / CHECKBOX)
+          // 4. BOOLEAN — libellé à gauche, case à cocher à droite (formulaire lots/résidents)
           if (field.type === "boolean") {
             return (
               <div
                 key={field.name}
-                className="flex min-h-[44px] items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/40"
+                className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/40"
               >
-                <div>
+                <div className="min-w-0">
                   <label
                     htmlFor={`field-${field.name}`}
                     className="text-sm font-semibold text-slate-900 dark:text-white"
@@ -292,7 +309,7 @@ export function ResourceForm<T = any>({
                   checked={Boolean(val)}
                   onChange={(e) => handleChange(field.name, e.target.checked)}
                   disabled={loading || field.readOnly}
-                  className="h-5 w-5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 dark:border-slate-700"
+                  className="h-5 w-5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700"
                 />
               </div>
             );

@@ -1,9 +1,10 @@
 import { createCrudRoutes } from "@/lib/crud/createCrudRoutes";
 import { Resident } from "@/models/Resident";
 import { Apartment } from "@/models/Apartment";
+import { User } from "@/models/User";
 import { getResidentApartmentIds, getSyndicResidenceIds } from "@/lib/auth-guard";
 import { residentCreateSchema, residentUpdateSchema } from "@/lib/validations/resident";
-import { Role } from "@/types/enums";
+import { Role, ResidentType } from "@/types/enums";
 import { HttpError } from "@/lib/api";
 
 export const residentCrudRoutes = createCrudRoutes({
@@ -70,5 +71,29 @@ export const residentCrudRoutes = createCrudRoutes({
         throw new HttpError(403, "Vous n'administrez pas la résidence de cet appartement");
       }
     }
+
+    // Si un compte existe déjà pour cet email, on le rattache automatiquement.
+    if (body.email && !body.user) {
+      const existing = await User.findOne({
+        email: String(body.email).trim().toLowerCase(),
+      }).select("_id role");
+      if (existing) {
+        body.user = String(existing._id);
+        if (existing.role === Role.OWNER || existing.role === Role.TENANT) {
+          existing.role =
+            body.type === ResidentType.TENANT ? Role.TENANT : Role.OWNER;
+          await existing.save();
+        }
+      }
+    }
+  },
+
+  afterCreate: async (doc) => {
+    if (!doc?.apartment) return;
+    const updates: Record<string, unknown> = { isOccupied: true };
+    if (doc.type === ResidentType.OWNER && doc.user) {
+      updates.owner = doc.user;
+    }
+    await Apartment.findByIdAndUpdate(doc.apartment, updates);
   },
 });

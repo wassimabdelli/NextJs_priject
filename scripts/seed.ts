@@ -42,16 +42,19 @@ import {
   ResidentType,
   ChargeStatus,
   PaymentMethod,
+  PaymentValidationStatus,
   ExpenseCategory,
   IncidentCategory,
   Priority,
   IncidentStatus,
+  IncidentTimelineType,
   MeetingStatus,
   VoteChoice,
   DocumentType,
   ElectionPhase,
 } from "../types/enums";
 import { JoinRequestStatus } from "../models/JoinRequest";
+import { buildJitsiMeetUrl } from "../lib/meetings/meetLink";
 
 async function runFullSeed() {
   console.log("🌱 Démarrage du seed enrichi SyndicPro (Toutes professions & Profils)...");
@@ -428,6 +431,9 @@ async function runFullSeed() {
     paymentDate: new Date("2026-01-14"),
     method: PaymentMethod.BANK_TRANSFER,
     receiptNumber: "REC-20260114-001",
+    validationStatus: PaymentValidationStatus.VALIDATED,
+    validatedBy: syndic._id,
+    validatedAt: new Date("2026-01-14"),
   });
 
   await Payment.create({
@@ -437,6 +443,9 @@ async function runFullSeed() {
     paymentDate: new Date("2026-01-20"),
     method: PaymentMethod.CASH,
     receiptNumber: "REC-20260120-002",
+    validationStatus: PaymentValidationStatus.VALIDATED,
+    validatedBy: syndic._id,
+    validatedAt: new Date("2026-01-20"),
   });
 
   await Payment.create({
@@ -446,6 +455,21 @@ async function runFullSeed() {
     paymentDate: new Date("2026-01-08"),
     method: PaymentMethod.CARD,
     receiptNumber: "REC-20260108-003",
+    validationStatus: PaymentValidationStatus.VALIDATED,
+    validatedBy: syndic._id,
+    validatedAt: new Date("2026-01-08"),
+  });
+
+  // Preuve Flip en attente de validation syndic (démo portefeuille)
+  await Payment.create({
+    charge: chargePartial._id,
+    submittedBy: extraOwner._id,
+    amount: 70,
+    paymentDate: new Date("2026-02-05"),
+    method: PaymentMethod.FLIP,
+    receiptNumber: "REC-20260205-PEND",
+    proofUrl: "https://example.com/proofs/flip-ahmed-2026-01.png",
+    validationStatus: PaymentValidationStatus.PENDING_VALIDATION,
   });
 
   // 8. Dépenses par catégorie
@@ -472,6 +496,39 @@ async function runFullSeed() {
 
   // 9. Incidents assignés à chaque technicien spécialisé
   console.log("⚠️ Création des incidents et assignation par métier...");
+  const mkTimeline = (
+    reportedBy: { _id: unknown },
+    assignedTo: { _id: unknown } | null,
+    reportedAt: Date,
+    status: IncidentStatus
+  ) => {
+    const events = [
+      {
+        at: reportedAt,
+        by: reportedBy._id,
+        type: IncidentTimelineType.CREATED,
+        message: "Incident signalé",
+      },
+    ];
+    if (assignedTo) {
+      events.push({
+        at: new Date(reportedAt.getTime() + 3600_000),
+        by: syndic._id,
+        type: IncidentTimelineType.ASSIGNED,
+        message: "Technicien assigné",
+      });
+    }
+    if (status === IncidentStatus.IN_PROGRESS || status === IncidentStatus.RESOLVED) {
+      events.push({
+        at: new Date(reportedAt.getTime() + 7200_000),
+        by: assignedTo?._id || syndic._id,
+        type: IncidentTimelineType.STATUS,
+        message: `Statut : ${status}`,
+      });
+    }
+    return events;
+  };
+
   // Plomberie -> Walid Plombier
   await Incident.create({
     residence: residence1._id,
@@ -484,6 +541,7 @@ async function runFullSeed() {
     priority: Priority.HIGH,
     status: IncidentStatus.IN_PROGRESS,
     reportedAt: new Date("2026-01-30"),
+    timeline: mkTimeline(owner, techPlombier, new Date("2026-01-30"), IncidentStatus.IN_PROGRESS),
   });
 
   // Électricité -> Khaled Électricien
@@ -498,6 +556,7 @@ async function runFullSeed() {
     priority: Priority.MEDIUM,
     status: IncidentStatus.ASSIGNED,
     reportedAt: new Date("2026-02-01"),
+    timeline: mkTimeline(omarTenant, techElectricien, new Date("2026-02-01"), IncidentStatus.ASSIGNED),
   });
 
   // Ascenseur -> Nizar Spécialiste Ascenseurs
@@ -512,6 +571,7 @@ async function runFullSeed() {
     status: IncidentStatus.RESOLVED,
     reportedAt: new Date("2026-01-20"),
     resolvedAt: new Date("2026-01-21"),
+    timeline: mkTimeline(syndic, techAscenseur, new Date("2026-01-20"), IncidentStatus.RESOLVED),
   });
 
   // Nettoyage -> Faouzi Responsable Nettoyage
@@ -526,6 +586,7 @@ async function runFullSeed() {
     priority: Priority.LOW,
     status: IncidentStatus.ASSIGNED,
     reportedAt: new Date("2026-02-02"),
+    timeline: mkTimeline(nourTenant, techNettoyage, new Date("2026-02-02"), IncidentStatus.ASSIGNED),
   });
 
   // Sécurité -> Béchir Sécurité
@@ -539,6 +600,7 @@ async function runFullSeed() {
     priority: Priority.HIGH,
     status: IncidentStatus.IN_PROGRESS,
     reportedAt: new Date("2026-02-01"),
+    timeline: mkTimeline(extraOwner, techSecurite, new Date("2026-02-01"), IncidentStatus.IN_PROGRESS),
   });
 
   // Polyvalent -> Sami Technicien
@@ -553,6 +615,7 @@ async function runFullSeed() {
     priority: Priority.LOW,
     status: IncidentStatus.REPORTED,
     reportedAt: new Date("2026-02-02"),
+    timeline: mkTimeline(tenant, techGeneral, new Date("2026-02-02"), IncidentStatus.REPORTED),
   });
 
   // 10. Annonces
@@ -585,6 +648,10 @@ async function runFullSeed() {
     agenda: "1. Bilan financier 2025\n2. Budget prévisionnel 2026\n3. Rénovation de la porte du garage",
     status: MeetingStatus.OPEN,
   });
+  meeting.meetUrl = buildJitsiMeetUrl(String(meeting._id), meeting.title);
+  meeting.meetProvider = "jitsi";
+  meeting.meetCreatedAt = new Date();
+  await meeting.save();
 
   const res1 = await Resolution.create({
     meeting: meeting._id,
@@ -773,6 +840,12 @@ async function runFullSeed() {
     weight: 150,
     votedAt: new Date("2025-11-15"),
   });
+
+  // Garde-fou démo : Mohamed reste syndic des 2 résidences, Yassine reste OWNER
+  // (une élection COMPLETED seedée ne doit pas casser les comptes de test).
+  await Residence.updateMany({}, { syndic: syndic._id });
+  await User.updateOne({ _id: owner._id }, { role: Role.OWNER });
+  await User.updateOne({ _id: syndic._id }, { role: Role.SYNDIC });
 
   console.log("\n==================================================");
   console.log("🎉 SEED ENRICHI TERMINÉ AVEC SUCCÈS !");

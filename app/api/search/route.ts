@@ -19,6 +19,7 @@ const ALL_TYPES = [
   "resident",
   "document",
   "meeting",
+  "residence",
 ] as const;
 
 type SearchType = (typeof ALL_TYPES)[number];
@@ -97,6 +98,8 @@ export const GET = withAuth(
       const needsRes =
         requestedTypes.includes("announcement") ||
         requestedTypes.includes("document") ||
+        requestedTypes.includes("incident") ||
+        requestedTypes.includes("residence") ||
         (user.role === Role.OWNER && requestedTypes.includes("meeting"));
 
       const [aptIds, resIds] = await Promise.all([
@@ -126,13 +129,17 @@ export const GET = withAuth(
           if (type === "charge" || type === "resident") {
             return { apartment: { $in: syndicAptIds } };
           }
+          if (type === "residence") {
+            return { _id: { $in: syndicResIds } };
+          }
           return { residence: { $in: syndicResIds } };
 
         case Role.OWNER:
         case Role.TENANT:
           switch (type) {
             case "incident":
-              return { reportedBy: user.id };
+              // Aligné sur la liste incidents : périmètre résidence, pas seulement reportedBy
+              return { residence: { $in: residentResIds } };
             case "charge":
               return { apartment: { $in: residentAptIds } };
             case "apartment":
@@ -140,6 +147,8 @@ export const GET = withAuth(
             case "announcement":
             case "document":
               return { residence: { $in: residentResIds } };
+            case "residence":
+              return { _id: { $in: residentResIds } };
             case "meeting":
               if (user.role === Role.OWNER) {
                 return { residence: { $in: residentResIds } };
@@ -367,6 +376,34 @@ export const GET = withAuth(
                 title,
                 subtitle: formatDateFR(d.date),
                 href: `/meetings?q=${encodeURIComponent(title)}`,
+              };
+            });
+          }
+
+          case "residence": {
+            const textFilter = {
+              $or: [{ name: regex }, { city: regex }, { address: regex }],
+            };
+            const docs = (await mongoose
+              .model("Residence")
+              .find(buildQuery(textFilter, scope))
+              .select("name city address")
+              .limit(5)
+              .lean()) as Array<{
+              _id: unknown;
+              name?: string;
+              city?: string;
+              address?: string;
+            }>;
+
+            return docs.map((d) => {
+              const title = d.name || "Résidence";
+              return {
+                type: "residence",
+                id: String(d._id),
+                title,
+                subtitle: [d.address, d.city].filter(Boolean).join(", ") || undefined,
+                href: `/dashboard`,
               };
             });
           }

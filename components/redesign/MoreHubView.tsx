@@ -17,9 +17,26 @@ import {
   Trash2,
   CheckCircle2,
   Loader2,
+  HardHat,
+  CalendarClock,
+  Wrench,
+  Package,
+  ClipboardList,
+  Bot,
+  ShieldCheck,
+  UserCog,
+  Wallet,
+  Bell,
+  UserRound,
+  DoorOpen,
+  BookOpen,
 } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { getOfflineDB, clearAllOfflineData, type OutboxItem } from "@/lib/offline/db";
+import { canAccessTab } from "@/lib/permissions";
+import { useRedesign } from "@/lib/redesign/store";
+import { DataChatbot } from "@/components/ai/DataChatbot";
+import { Role } from "@/types/enums";
 
 interface MoreHubViewProps {
   onNavigate: (tab: string) => void;
@@ -31,100 +48,239 @@ function formatOutboxPreview(item: OutboxItem): string {
   return `${item.method} · ${ent}`;
 }
 
+type ModuleItem = {
+  id: string;
+  title: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  /** Ancre locale (ex. chatbot) au lieu d’une route. */
+  anchor?: string;
+};
+
+/** Grille complète = modules Wassim/Ikbel + modules Ahmed (élections, wallet, join…). */
+const ALL_MODULES: ModuleItem[] = [
+  {
+    id: "users",
+    title: "Utilisateurs",
+    desc: "Rôles, comptes & accès",
+    icon: UserCog,
+    color: "text-slate-600",
+  },
+  {
+    id: "residences",
+    title: "Résidences",
+    desc: "Immeubles gérés",
+    icon: Building2,
+    color: "text-sky-500",
+  },
+  {
+    id: "apartments",
+    title: "Lots & Tantièmes",
+    desc: "Appartements & clés",
+    icon: Building2,
+    color: "text-cyan-500",
+  },
+  {
+    id: "residents",
+    title: "Résidents",
+    desc: "Fiches des occupants",
+    icon: Users,
+    color: "text-teal-500",
+  },
+  {
+    id: "charges",
+    title: "Charges & Cotisations",
+    desc: "Appels de fonds et états financiers",
+    icon: Receipt,
+    color: "text-blue-500",
+  },
+  {
+    id: "payments",
+    title: "Paiements",
+    desc: "Encaissements & reçus",
+    icon: Receipt,
+    color: "text-teal-600",
+  },
+  {
+    id: "expenses",
+    title: "Dépenses",
+    desc: "Charges de la copropriété",
+    icon: FileText,
+    color: "text-rose-500",
+  },
+  {
+    id: "wallet",
+    title: "Portefeuille",
+    desc: "Règlements D17, Flip et cartes",
+    icon: Wallet,
+    color: "text-pink-500",
+  },
+  {
+    id: "incidents",
+    title: "Incidents & Pannes",
+    desc: "Signalements et fiches d’intervention",
+    icon: AlertTriangle,
+    color: "text-amber-500",
+  },
+  {
+    id: "equipment",
+    title: "Équipements",
+    desc: "Parc, garanties & entretien",
+    icon: Wrench,
+    color: "text-slate-600",
+  },
+  {
+    id: "maintenance",
+    title: "Interventions",
+    desc: "Maintenance préventive & pannes",
+    icon: ClipboardList,
+    color: "text-amber-600",
+  },
+  {
+    id: "stock",
+    title: "Stock & Consommables",
+    desc: "Inventaire, mouvements & alertes",
+    icon: Package,
+    color: "text-lime-600",
+  },
+  {
+    id: "employees",
+    title: "Personnel",
+    desc: "Gardiens, agents & contrats",
+    icon: HardHat,
+    color: "text-orange-500",
+  },
+  {
+    id: "shifts",
+    title: "Plannings",
+    desc: "Créneaux horaires & gardes",
+    icon: CalendarClock,
+    color: "text-blue-600",
+  },
+  {
+    id: "leaves",
+    title: "Congés",
+    desc: "Absences & validations RH",
+    icon: Calendar,
+    color: "text-fuchsia-500",
+  },
+  {
+    id: "meetings",
+    title: "Assemblées (AG)",
+    desc: "Séances & ordres du jour",
+    icon: Calendar,
+    color: "text-purple-500",
+  },
+  {
+    id: "resolutions",
+    title: "Résolutions",
+    desc: "Dépouillement & quorums",
+    icon: Vote,
+    color: "text-indigo-500",
+  },
+  {
+    id: "votes",
+    title: "Bulletins de vote",
+    desc: "Suffrages par tantièmes",
+    icon: Vote,
+    color: "text-violet-500",
+  },
+  {
+    id: "elections",
+    title: "Élections du Syndic",
+    desc: "Candidatures et scrutin",
+    icon: ShieldCheck,
+    color: "text-emerald-500",
+  },
+  {
+    id: "documents",
+    title: "Documents",
+    desc: "PV, contrats & attestations",
+    icon: FileText,
+    color: "text-violet-600",
+  },
+  {
+    id: "announcements",
+    title: "Annonces",
+    desc: "Panneau d’affichage officiel",
+    icon: Sparkles,
+    color: "text-amber-500",
+  },
+  {
+    id: "join",
+    title: "Rejoindre une résidence",
+    desc: "Demande d’accès à un lot",
+    icon: DoorOpen,
+    color: "text-sky-600",
+  },
+  {
+    id: "join-requests",
+    title: "Demandes de rattachement",
+    desc: "Approuver ou refuser les demandes",
+    icon: ShieldCheck,
+    color: "text-amber-600",
+  },
+  {
+    id: "notifications",
+    title: "Notifications",
+    desc: "Alertes et rappels in-app",
+    icon: Bell,
+    color: "text-rose-400",
+  },
+  {
+    id: "profile",
+    title: "Mon profil",
+    desc: "Compte, sécurité et déconnexion",
+    icon: UserRound,
+    color: "text-slate-500",
+  },
+  {
+    id: "api-docs",
+    title: "API Swagger",
+    desc: "Documentation OpenAPI",
+    icon: BookOpen,
+    color: "text-indigo-600",
+  },
+  {
+    id: "chatbot",
+    title: "Chatbot Data IA",
+    desc: "Questions sur stock, charges & incidents",
+    icon: Bot,
+    color: "text-blue-600",
+    anchor: "chatbot-data",
+  },
+];
+
 export const MoreHubView: React.FC<MoreHubViewProps> = ({ onNavigate }) => {
+  const { apiRole } = useRedesign();
   const { isOnline, hydrated, pendingCount, isSyncing, syncNow, refreshPendingCount } =
     useOnlineStatus();
   const [syncMessage, setSyncMessage] = React.useState<string | null>(null);
   const [clearingCache, setClearingCache] = React.useState(false);
   const [swSummary, setSwSummary] = React.useState<string>("—");
+  const [swApiLabel, setSwApiLabel] = React.useState("…");
   const [outboxItems, setOutboxItems] = React.useState<OutboxItem[]>([]);
 
-  const modules = [
-    {
-      id: "charges",
-      title: "Charges & Cotisations",
-      desc: "Appels de fonds et états financiers",
-      icon: Receipt,
-      color: "text-blue-500",
-    },
-    {
-      id: "expenses",
-      title: "Dépenses & Factures",
-      desc: "Fournisseurs et contrats STEG / Ascenseur",
-      icon: FileText,
-      color: "text-rose-500",
-    },
-    {
-      id: "incidents",
-      title: "Incidents & Pannes",
-      desc: "Signalements et fiches d’intervention",
-      icon: AlertTriangle,
-      color: "text-amber-500",
-    },
-    {
-      id: "meetings",
-      title: "Assemblées Générales",
-      desc: "Séances AG, quorum légal et procès-verbaux",
-      icon: Calendar,
-      color: "text-purple-500",
-    },
-    {
-      id: "resolutions",
-      title: "Résolutions & Votes",
-      desc: "Dépouillement et majorités en ligne",
-      icon: Vote,
-      color: "text-indigo-500",
-    },
-    {
-      id: "elections",
-      title: "Élections du Syndic",
-      desc: "Candidatures et scrutin démocratique",
-      icon: Users,
-      color: "text-emerald-500",
-    },
-    {
-      id: "payments",
-      title: "Paiements & Reçus",
-      desc: "Encaissements certifiés et grand livre",
-      icon: Receipt,
-      color: "text-teal-500",
-    },
-    {
-      id: "apartments",
-      title: "Appartements & Lots",
-      desc: "Cadastre, millièmes et clés de charges",
-      icon: Building2,
-      color: "text-sky-500",
-    },
-    {
-      id: "residents",
-      title: "Fiches Copropriétaires",
-      desc: "Annuaire certifié des résidents et rôles",
-      icon: Users,
-      color: "text-cyan-500",
-    },
-    {
-      id: "documents",
-      title: "Documents & Contrats",
-      desc: "Coffre-fort d’archivage réglementaire",
-      icon: FileText,
-      color: "text-violet-500",
-    },
-    {
-      id: "announcements",
-      title: "Panneau d’Affichage",
-      desc: "Annonces officielles de la résidence",
-      icon: Sparkles,
-      color: "text-amber-500",
-    },
-    {
-      id: "wallet",
-      title: "Portefeuille Résident",
-      desc: "Règlements D17, Flip et cartes virtuelles",
-      icon: Receipt,
-      color: "text-pink-500",
-    },
-  ];
+  const modules = ALL_MODULES.filter((m) => {
+    if (m.anchor) {
+      return (
+        apiRole === Role.ADMIN ||
+        apiRole === Role.SYNDIC ||
+        apiRole === Role.TECHNICIAN ||
+        apiRole === null
+      );
+    }
+    // Tant que le rôle n’est pas hydraté, on affiche la grille (évite une page vide).
+    if (!apiRole) return true;
+    return canAccessTab(apiRole, m.id);
+  });
+
+  const showChatbot =
+    !apiRole ||
+    apiRole === Role.ADMIN ||
+    apiRole === Role.SYNDIC ||
+    apiRole === Role.TECHNICIAN;
 
   const refreshOutboxList = React.useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -143,7 +299,9 @@ export const MoreHubView: React.FC<MoreHubViewProps> = ({ onNavigate }) => {
   }, [refreshOutboxList, pendingCount]);
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    const hasSw = typeof navigator !== "undefined" && "serviceWorker" in navigator;
+    setSwApiLabel(hasSw ? "API disponible" : "Non disponible");
+    if (!hasSw) {
       setSwSummary("Non supporté");
       return;
     }
@@ -191,6 +349,15 @@ export const MoreHubView: React.FC<MoreHubViewProps> = ({ onNavigate }) => {
 
   const networkOk = hydrated ? isOnline : true;
 
+  const handleModuleClick = (m: ModuleItem) => {
+    if (m.anchor) {
+      const el = document.getElementById(m.anchor);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    onNavigate(m.id);
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
       <div className="border-b border-slate-200/80 dark:border-white/[0.08] pb-5">
@@ -201,22 +368,22 @@ export const MoreHubView: React.FC<MoreHubViewProps> = ({ onNavigate }) => {
           Gestion & Modules de Copropriété
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Supervision des résidences, synchronisation hors ligne et administration globale
+          Tous les modules (ops, gouvernance, finance) — filtrés selon votre rôle
         </p>
       </div>
 
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          Tous les modules disponibles
+          Modules de gestion & copropriété
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-          {modules.map((m, idx) => {
+          {modules.map((m) => {
             const Icon = m.icon;
             return (
               <button
-                key={idx}
+                key={m.id}
                 type="button"
-                onClick={() => onNavigate(m.id)}
+                onClick={() => handleModuleClick(m)}
                 className="p-4 rounded-3xl glass-card hover:scale-[1.02] transition-all text-left flex items-start gap-3.5 group shadow-xs min-h-[44px]"
               >
                 <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200/60 dark:border-white/[0.06] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -235,6 +402,20 @@ export const MoreHubView: React.FC<MoreHubViewProps> = ({ onNavigate }) => {
           })}
         </div>
       </div>
+
+      {showChatbot && (
+        <div id="chatbot-data" className="pt-2 space-y-3 scroll-mt-24">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Assistant données IA
+            </p>
+          </div>
+          <div className="rounded-3xl glass-card overflow-hidden">
+            <DataChatbot />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
         <div className="p-6 rounded-3xl glass-card space-y-4">
@@ -320,7 +501,7 @@ export const MoreHubView: React.FC<MoreHubViewProps> = ({ onNavigate }) => {
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-slate-500 dark:text-slate-400">Navigateur :</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                {"serviceWorker" in navigator ? "API disponible" : "Non disponible"}
+                {swApiLabel}
               </span>
             </div>
           </div>

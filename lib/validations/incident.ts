@@ -42,5 +42,24 @@ export const incidentAssignSchema = z.object({ assignedTo: objectId });
 /** PATCH /api/incidents/[id]/status */
 export const incidentStatusSchema = z.object({ status: z.enum(IncidentStatus) });
 
+/** POST /api/incidents/[id]/comments */
+export const incidentCommentSchema = z.object({
+  message: z.string().trim().min(1).max(2000),
+});
+
+/** POST /api/incidents/[id]/resolution */
+export const incidentResolutionSchema = z.object({
+  resolutionNote: z.string().trim().min(3).max(5000),
+  photos: z.array(photo).max(5).default([]),
+});
+
+/** POST /api/incidents/[id]/resolution/reject */
+export const incidentResolutionRejectSchema = z.object({
+  reason: z.string().trim().min(3).max(2000),
+});
+
 export type IncidentCreateInput = z.infer<typeof incidentCreateSchema>;
 export type IncidentUpdateInput = z.infer<typeof incidentUpdateSchema>;
+export type IncidentCommentInput = z.infer<typeof incidentCommentSchema>;
+export type IncidentResolutionInput = z.infer<typeof incidentResolutionSchema>;
+export type IncidentResolutionRejectInput = z.infer<typeof incidentResolutionRejectSchema>;

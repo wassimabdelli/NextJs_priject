@@ -79,7 +79,9 @@ export const POST = withAuth(
       throw new HttpError(409, "Une demande de rattachement est déjà en attente pour cette résidence");
     }
 
-    const requestedRole = user.role === Role.TENANT ? Role.TENANT : Role.OWNER;
+    // Le type d'occupation choisi prime sur le rôle JWT actuel.
+    const requestedRole =
+      body.residentType === "TENANT" ? Role.TENANT : Role.OWNER;
 
     const request = await JoinRequest.create({
       user: user.id,

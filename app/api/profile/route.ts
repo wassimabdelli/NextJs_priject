@@ -22,9 +22,22 @@ const profileUpdateSchema = z.object({
  * Récupère le profil complet de l'utilisateur avec ses résidences, appartements et coordonnées du syndic.
  */
 export const GET = withAuth(async (_req: NextRequest, authUser: AuthUser) => {
-  const user = await User.findById(authUser.id, "name email phone role isActive createdAt updatedAt").lean();
+  // Tolère une session obsolète après reseed : tente id puis email
+  let user = await User.findById(
+    authUser.id,
+    "name email phone role isActive createdAt updatedAt"
+  ).lean();
+  if (!user && authUser.email) {
+    user = await User.findOne(
+      { email: authUser.email.toLowerCase() },
+      "name email phone role isActive createdAt updatedAt"
+    ).lean();
+  }
   if (!user) {
-    throw new HttpError(404, "Utilisateur introuvable");
+    throw new HttpError(
+      404,
+      "Utilisateur introuvable — reconnectez-vous (session obsolète après un seed)."
+    );
   }
 
   const result: any = {
@@ -177,9 +190,17 @@ export const GET = withAuth(async (_req: NextRequest, authUser: AuthUser) => {
 export const PATCH = withAuth(async (req: NextRequest, authUser: AuthUser) => {
   const body = await parseBody(req, profileUpdateSchema);
 
-  const user = await User.findById(authUser.id).select("+passwordHash");
+  let user = await User.findById(authUser.id).select("+passwordHash");
+  if (!user && authUser.email) {
+    user = await User.findOne({ email: authUser.email.toLowerCase() }).select(
+      "+passwordHash"
+    );
+  }
   if (!user) {
-    throw new HttpError(404, "Utilisateur introuvable");
+    throw new HttpError(
+      404,
+      "Utilisateur introuvable — reconnectez-vous (session obsolète après un seed)."
+    );
   }
 
   if (body.name !== undefined) {

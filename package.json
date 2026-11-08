@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:dev": "bash scripts/start-dev.sh",
     "lint": "eslint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "validate:openapi": "tsx scripts/validate-openapi.ts"

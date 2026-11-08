@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -14,12 +14,20 @@ import {
   Sparkles,
   Copy,
   ExternalLink,
+  Upload,
+  RefreshCw,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Role } from "@/types/enums";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
 
 export default function MeetingAgPackClient({ id }: { id: string }) {
   const [role, setRole] = useState<Role | null>(null);
@@ -32,6 +40,12 @@ export default function MeetingAgPackClient({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{
+    name: string;
+    size: number;
+  } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -133,35 +147,70 @@ export default function MeetingAgPackClient({ id }: { id: string }) {
     await load();
   };
 
-  const uploadRecording = async (file: File) => {
+  const uploadRecording = (file: File) => {
     if (file.size === 0) {
-      setError("Fichier vide (0 octet) — choisis l'enregistrement .webm qui a une taille > 0");
+      setError(
+        "Fichier vide (0 octet) — choisis l'enregistrement .webm qui a une taille > 0"
+      );
       return;
     }
-    if (file.size > 25 * 1024 * 1024) {
-      setError("Fichier trop gros (max 25 Mo pour l'upload IA)");
+    if (file.size > 100 * 1024 * 1024) {
+      setError("Fichier trop gros (max 100 Mo pour l'upload IA)");
       return;
     }
+
     setBusy(true);
     setError(null);
-    setMessage("Transcription de l'enregistrement en cours…");
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch(`/api/meetings/${id}/recording`, {
-        method: "POST",
-        body: fd,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec upload / transcription");
-      setTranscriptDraft(data.transcript || "");
-      setMessage("Enregistrement transcrit — ODJ + brouillon PV mis à jour");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Échec");
-    } finally {
+    setUploadProgress(0);
+    setMessage("Envoi de l'enregistrement…");
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/meetings/${id}/recording`);
+
+    xhr.upload.onprogress = (ev) => {
+      if (!ev.lengthComputable) return;
+      const pct = Math.min(99, Math.round((ev.loaded / ev.total) * 100));
+      setUploadProgress(pct);
+      if (pct >= 100 || ev.loaded >= ev.total) {
+        setMessage("Transcription de l'enregistrement en cours…");
+      }
+    };
+
+    xhr.onload = async () => {
+      try {
+        const data = JSON.parse(xhr.responseText || "{}");
+        if (xhr.status < 200 || xhr.status >= 300) {
+          throw new Error(data.error || "Échec upload / transcription");
+        }
+        setUploadedFile({ name: file.name, size: file.size });
+        setTranscriptDraft(data.transcript || "");
+        setMessage("Enregistrement transcrit — ODJ + brouillon PV mis à jour");
+        await load();
+        setUploadProgress(null);
+      } catch (e) {
+        setUploadedFile(null);
+        setUploadProgress(null);
+        setError(e instanceof Error ? e.message : "Échec");
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    xhr.onerror = () => {
+      setUploadedFile(null);
+      setUploadProgress(null);
       setBusy(false);
-    }
+      setError("Échec réseau pendant l'upload");
+    };
+
+    xhr.send(fd);
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
   };
 
   const saveAttendance = async () => {
@@ -312,27 +361,92 @@ export default function MeetingAgPackClient({ id }: { id: string }) {
                     puis upload ici. L&apos;IA transcrit et remplit ODJ + brouillon de PV.
                     Tu peux aussi coller un texte manuellement.
                   </p>
-                  <div className="rounded-xl border border-dashed border-sky-400 bg-sky-50 p-4 dark:border-sky-700 dark:bg-sky-950/40">
-                    <p className="text-sm font-semibold text-sky-900 dark:text-sky-200">
-                      2. Upload enregistrement Jitsi (.webm)
-                    </p>
-                    <p className="mt-1 text-pretty text-xs text-slate-600 dark:text-slate-400">
-                      Choisis le fichier dans Téléchargements (ex. SyndicPro-AG-….webm,
-                      pas celui à 0 octet).
-                    </p>
-                    <input
-                      type="file"
-                      accept="audio/*,video/webm,video/mp4,.webm"
-                      aria-label="Uploader un enregistrement Jitsi"
-                      className="mt-3 block min-h-11 w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                      disabled={busy}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) uploadRecording(f);
-                        e.target.value = "";
-                      }}
-                    />
-                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*,video/webm,video/mp4,.webm"
+                    aria-label="Uploader un enregistrement Jitsi"
+                    className="sr-only"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadRecording(f);
+                      e.target.value = "";
+                    }}
+                  />
+
+                  {uploadedFile && uploadProgress === null ? (
+                    <div className="rounded-xl border border-emerald-400 bg-emerald-50 p-4 dark:border-emerald-600 dark:bg-emerald-950/40">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                            2. Enregistrement chargé
+                          </p>
+                          <p className="mt-1 truncate text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                            {uploadedFile.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-emerald-700/80 dark:text-emerald-400/80">
+                            {formatFileSize(uploadedFile.size)} · prêt pour le pack IA
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="min-h-11 shrink-0 gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-200 dark:hover:bg-emerald-900/40"
+                          onClick={openFilePicker}
+                          disabled={busy}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                          Re-téléverser
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`rounded-xl border border-dashed p-4 ${
+                        uploadProgress !== null
+                          ? "border-sky-500 bg-sky-50 dark:border-sky-500 dark:bg-sky-950/50"
+                          : "border-sky-400 bg-sky-50 dark:border-sky-700 dark:bg-sky-950/40"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-sky-900 dark:text-sky-200">
+                        2. Upload enregistrement Jitsi (.webm)
+                      </p>
+                      <p className="mt-1 text-pretty text-xs text-slate-600 dark:text-slate-400">
+                        {uploadProgress !== null
+                          ? uploadProgress < 100
+                            ? `Envoi en cours… ${uploadProgress} %`
+                            : "Fichier reçu — transcription IA en cours…"
+                          : "Choisis le fichier dans Téléchargements (ex. SyndicPro-AG-….webm, pas celui à 0 octet)."}
+                      </p>
+
+                      {uploadProgress !== null ? (
+                        <div className="mt-3 space-y-2" aria-live="polite">
+                          <div className="h-2.5 w-full overflow-hidden rounded-full bg-sky-200/80 dark:bg-sky-900">
+                            <div
+                              className="h-full rounded-full bg-sky-600 transition-[width] duration-200"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] font-semibold text-sky-800 dark:text-sky-300">
+                            {uploadProgress}%
+                          </p>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          className="mt-3 min-h-11 gap-2"
+                          onClick={openFilePicker}
+                          disabled={busy}
+                        >
+                          <Upload className="h-4 w-4" aria-hidden />
+                          Choisir un fichier
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <textarea
                     className="min-h-40 w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     placeholder="Ex. : Ouverture à 18h… Discussion sur l'ascenseur… Vote pour travaux façade adopté…"

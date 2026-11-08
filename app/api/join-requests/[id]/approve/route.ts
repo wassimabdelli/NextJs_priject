@@ -100,6 +100,17 @@ export const PATCH = withAuth(
       await resident.save();
     }
 
+    // Aligne le rôle Auth.js sur le type demandé (sinon le JWT reste incohérent).
+    const targetRole =
+      request.residentType === ResidentType.TENANT ? Role.TENANT : Role.OWNER;
+    if (
+      applicant.role === Role.OWNER ||
+      applicant.role === Role.TENANT ||
+      !applicant.role
+    ) {
+      await User.findByIdAndUpdate(request.user, { role: targetRole });
+    }
+
     // Finalisation de la demande
     request.status = JoinRequestStatus.APPROVED;
     request.residentId = resident._id;
