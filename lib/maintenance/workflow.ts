@@ -8,13 +8,16 @@ export const MAINTENANCE_TRANSITIONS: Record<MaintenanceStatus, MaintenanceStatu
   [MaintenanceStatus.PLANNED]: [
     MaintenanceStatus.IN_PROGRESS,
     MaintenanceStatus.DONE,
+    MaintenanceStatus.COMPLETED,
     MaintenanceStatus.CANCELLED,
   ],
   [MaintenanceStatus.IN_PROGRESS]: [
     MaintenanceStatus.DONE,
+    MaintenanceStatus.COMPLETED,
     MaintenanceStatus.CANCELLED,
   ],
   [MaintenanceStatus.DONE]: [],
+  [MaintenanceStatus.COMPLETED]: [],
   [MaintenanceStatus.CANCELLED]: [],
 };
 

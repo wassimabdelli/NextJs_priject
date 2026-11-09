@@ -53,3 +53,5 @@ LeaveRequestSchema.index({ residence: 1, status: 1 });
 export const LeaveRequest =
   (mongoose.models.LeaveRequest as LeaveRequestModel) ||
   model<ILeaveRequest, LeaveRequestModel>("LeaveRequest", LeaveRequestSchema);
+
+export const Leave = LeaveRequest;

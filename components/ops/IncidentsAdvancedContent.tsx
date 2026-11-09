@@ -337,11 +337,59 @@ function IncidentsContent() {
         if (data?.user) {
           setCurrentUser({ id: data.user.id, role: data.user.role as Role });
           if (data.user.role === Role.ADMIN || data.user.role === Role.SYNDIC) {
-            fetch("/api/users?role=TECHNICIAN&limit=50")
-              .then((r) => (r.ok ? r.json() : null))
-              .then((techs) => {
-                const list = Array.isArray(techs) ? techs : techs?.data || [];
-                setTechnicians(list);
+            Promise.all([
+              fetch("/api/users?role=TECHNICIAN&limit=50").then((r) =>
+                r.ok ? r.json() : null
+              ),
+              fetch("/api/employees?limit=50").then((r) =>
+                r.ok ? r.json() : null
+              ),
+            ])
+              .then(([techsRes, empsRes]) => {
+                const techUsers = Array.isArray(techsRes)
+                  ? techsRes
+                  : techsRes?.data || [];
+                const empDocs = Array.isArray(empsRes)
+                  ? empsRes
+                  : empsRes?.data || [];
+
+                const merged: Array<{ _id: string; name?: string; email?: string }> = [
+                  ...techUsers,
+                ];
+                const seenIds = new Set(merged.map((u) => String(u._id)));
+                const seenEmails = new Set(
+                  merged
+                    .map((u) => u.email?.toLowerCase().trim())
+                    .filter(Boolean)
+                );
+
+                for (const emp of empDocs) {
+                  const linkedUserId =
+                    typeof emp.user === "object" && emp.user !== null
+                      ? emp.user._id
+                      : emp.user;
+                  const targetId = String(linkedUserId || emp._id);
+                  const email = (
+                    emp.email ||
+                    (typeof emp.user === "object" ? emp.user?.email : "") ||
+                    ""
+                  )
+                    .toLowerCase()
+                    .trim();
+
+                  if (seenIds.has(targetId) || (email && seenEmails.has(email))) {
+                    continue;
+                  }
+                  seenIds.add(targetId);
+                  if (email) seenEmails.add(email);
+                  merged.push({
+                    _id: targetId,
+                    name: emp.fullName || emp.name || "Employé",
+                    email: email || emp.position || "RH",
+                  });
+                }
+
+                setTechnicians(merged);
               })
               .catch(() => {});
           }
@@ -522,9 +570,12 @@ function IncidentsContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assignedTo: selectedTechId }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Erreur lors de l'assignation");
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 400 || !res.ok) {
+        const backendError =
+          data?.error || "Impossible d'assigner ce technicien à l'incident.";
+        setErrorMessage(backendError);
+        return;
       }
       setIncidents((prev) =>
         prev.map((inc) => (inc._id === assigningIncident._id ? { ...inc, ...data } : inc))
@@ -1013,18 +1064,36 @@ function IncidentsContent() {
                     {/* Technicien assigné */}
                     <div className="text-xs">
                       {techName ? (
-                        <div className="flex flex-wrap items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                          <UserCheck className="h-3.5 w-3.5 text-sky-500 shrink-0" />
-                          <span>
-                            Technicien : <strong>{techName}</strong>
-                          </span>
-                          {techPhone && (
-                            <a
-                              href={`tel:${techPhone}`}
-                              className="inline-flex items-center gap-1 text-sky-600 font-semibold underline hover:text-sky-700 dark:text-sky-400"
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600 dark:text-slate-300">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <UserCheck className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                            <span>
+                              Technicien : <strong>{techName}</strong>
+                            </span>
+                            {techPhone && (
+                              <a
+                                href={`tel:${techPhone}`}
+                                className="inline-flex items-center gap-1 text-sky-600 font-semibold underline hover:text-sky-700 dark:text-sky-400"
+                              >
+                                ({techPhone})
+                              </a>
+                            )}
+                          </div>
+                          {canAssign && inc.status !== IncidentStatus.RESOLVED && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="min-h-[44px] px-3 text-xs"
+                              onClick={() => {
+                                setErrorMessage(null);
+                                setAssigningIncident(inc);
+                                setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
+                              }}
                             >
-                              ({techPhone})
-                            </a>
+                              <UserCheck aria-hidden="true" className="h-3.5 w-3.5" />
+                              Réassigner
+                            </Button>
                           )}
                         </div>
                       ) : canAssign ? (
@@ -1033,12 +1102,13 @@ function IncidentsContent() {
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             Non assigné · à prendre en charge
                           </span>
-                          {inc.status === IncidentStatus.REPORTED && (
+                          {inc.status !== IncidentStatus.RESOLVED && (
                             <Button
                               type="button"
                               size="sm"
                               className="min-h-[44px] bg-amber-600 px-3 text-xs text-white hover:bg-amber-700"
                               onClick={() => {
+                                setErrorMessage(null);
                                 setAssigningIncident(inc);
                                 setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
                               }}
@@ -1144,11 +1214,23 @@ function IncidentsContent() {
         {/* Modal d'assignation de technicien */}
         <BottomSheet
           isOpen={!!assigningIncident}
-          onClose={() => setAssigningIncident(null)}
+          onClose={() => {
+            setAssigningIncident(null);
+            setErrorMessage(null);
+          }}
           title="Assigner un technicien"
           description="Sélectionnez le technicien pour intervenir sur cet incident. Le statut passera à ASSIGNÉ."
         >
           <form onSubmit={handleAssignTechnician} className="space-y-4 pt-2">
+            {errorMessage && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
             {technicians.length === 0 ? (
               <p className="text-sm text-slate-500">
                 Aucun compte avec le rôle TECHNICIEN trouvé. Veuillez d&apos;abord en créer un dans la gestion des utilisateurs.
@@ -1779,12 +1861,13 @@ function IncidentsContent() {
 
                 {/* Footer avec boutons d'actions */}
                 <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 p-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
-                  {inc.status === IncidentStatus.REPORTED && canAssign && (
+                  {inc.status !== IncidentStatus.RESOLVED && canAssign && (
                     <Button
                       size="sm"
                       variant="secondary"
                       className="min-h-[44px] gap-1"
                       onClick={() => {
+                        setErrorMessage(null);
                         setAssigningIncident(inc);
                         setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
                       }}

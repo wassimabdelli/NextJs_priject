@@ -75,12 +75,19 @@ export const maintenanceTaskUpdateSchema = taskBase
   .partial()
   .extend({ status: z.enum(MaintenanceStatus).optional() });
 
+/** Pièce de stock utilisée lors de la clôture d'une intervention */
+const usedItemSchema = z.object({
+  itemId: objectId,
+  quantity: z.coerce.number().positive("La quantité doit être supérieure à 0"),
+});
+
 /** Clôture d'une intervention (action dédiée) */
 export const maintenanceCompleteSchema = z.object({
   cost: money.optional(),
   notes: z.string().trim().max(1000).optional(),
   checklist: z.array(checklistItem).max(30).optional(),
   completedAt: date.optional(),
+  usedItems: z.array(usedItemSchema).max(50).optional(),
 });
 
 /** PATCH /api/maintenance/[id]/status : démarrage ou annulation (la clôture a sa propre route) */

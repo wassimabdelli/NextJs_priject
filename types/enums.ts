@@ -91,6 +91,7 @@ export const ExpenseCategory = {
   CLEANING: "CLEANING",
   SECURITY: "SECURITY",
   MAINTENANCE: "MAINTENANCE",
+  SUPPLIES: "SUPPLIES",
   OTHER: "OTHER",
 } as const;
 export type ExpenseCategory = (typeof ExpenseCategory)[keyof typeof ExpenseCategory];
@@ -200,6 +201,7 @@ export const expenseCategoryLabel: Record<ExpenseCategory, string> = {
   CLEANING: "Nettoyage",
   SECURITY: "Sécurité",
   MAINTENANCE: "Maintenance",
+  SUPPLIES: "Fournitures",
   OTHER: "Autres",
 };
 
@@ -335,6 +337,7 @@ export const MaintenanceStatus = {
   PLANNED: "PLANNED",
   IN_PROGRESS: "IN_PROGRESS",
   DONE: "DONE",
+  COMPLETED: "COMPLETED",
   CANCELLED: "CANCELLED",
 } as const;
 export type MaintenanceStatus = (typeof MaintenanceStatus)[keyof typeof MaintenanceStatus];

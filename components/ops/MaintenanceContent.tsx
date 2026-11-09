@@ -65,12 +65,27 @@ interface ChecklistItem {
   done: boolean;
 }
 
+interface StockItemOption {
+  _id: string;
+  name: string;
+  quantity: number;
+  unit?: string;
+  minThreshold?: number;
+  minQuantity?: number;
+  residence?: ResidenceItem | string;
+}
+
+interface UsedStockEntry {
+  itemId: string;
+  quantity: number;
+}
+
 interface MaintenanceTaskItem {
   _id: string;
   residence?: ResidenceItem | string;
   equipment?: EquipmentItem | string;
   type: "PREVENTIVE" | "CORRECTIVE" | string;
-  status: "PLANNED" | "IN_PROGRESS" | "DONE" | "CANCELLED" | string;
+  status: "PLANNED" | "IN_PROGRESS" | "DONE" | "COMPLETED" | "CANCELLED" | string;
   title: string;
   description?: string;
   scheduledDate: string;
@@ -100,6 +115,10 @@ const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
     cls: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
   },
   [MaintenanceStatus.DONE]: {
+    label: "Terminée",
+    cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  [MaintenanceStatus.COMPLETED]: {
     label: "Terminée",
     cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
   },
@@ -146,6 +165,7 @@ function MaintenanceInner() {
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [tasks, setTasks] = useState<MaintenanceTaskItem[]>([]);
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
+  const [stockItems, setStockItems] = useState<StockItemOption[]>([]);
   const [residences, setResidences] = useState<ResidenceItem[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -177,6 +197,9 @@ function MaintenanceInner() {
   const [newChecklistLabel, setNewChecklistLabel] = useState("");
   const [closingCost, setClosingCost] = useState<string>("0");
   const [closingNotes, setClosingNotes] = useState<string>("");
+  const [usedItems, setUsedItems] = useState<UsedStockEntry[]>([]);
+  const [selectedStockId, setSelectedStockId] = useState<string>("");
+  const [selectedStockQty, setSelectedStockQty] = useState<string>("1");
   const [isSubmittingClose, setIsSubmittingClose] = useState(false);
 
   const isManager =
@@ -218,19 +241,22 @@ function MaintenanceInner() {
     setIsLoading(true);
     try {
       const effectiveRole = roleOverride ?? currentUser?.role;
-      const [maintRes, equipRes, resRes] = await Promise.all([
+      const [maintRes, equipRes, resRes, stockRes] = await Promise.all([
         fetchWithOffline("/api/maintenance?limit=50"),
         fetchWithOffline("/api/equipment?limit=50"),
         fetchWithOffline("/api/residences"),
+        fetchWithOffline("/api/stock/items?limit=100"),
       ]);
 
       const loadedTasks = extractList<MaintenanceTaskItem>(maintRes);
       const loadedEquipment = extractList<EquipmentItem>(equipRes);
       const loadedResidences = extractList<ResidenceItem>(resRes);
+      const loadedStock = extractList<StockItemOption>(stockRes);
 
       setTasks(loadedTasks);
       setEquipmentList(loadedEquipment);
       setResidences(loadedResidences);
+      setStockItems(loadedStock);
 
       if (!createResidence && loadedResidences.length > 0) {
         setCreateResidence(loadedResidences[0]._id);
@@ -312,7 +338,18 @@ function MaintenanceInner() {
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter((task) => {
-      if (statusFilter !== "ALL" && task.status !== statusFilter) return false;
+      if (statusFilter !== "ALL") {
+        if (statusFilter === MaintenanceStatus.DONE) {
+          if (
+            task.status !== MaintenanceStatus.DONE &&
+            task.status !== MaintenanceStatus.COMPLETED
+          ) {
+            return false;
+          }
+        } else if (task.status !== statusFilter) {
+          return false;
+        }
+      }
       if (typeFilter !== "ALL" && task.type !== typeFilter) return false;
       if (q) {
         const eqName =
@@ -442,6 +479,25 @@ function MaintenanceInner() {
     }
   };
 
+  // Articles de stock disponibles pour la résidence de l'intervention en cours de clôture
+  const availableStockForClosing = useMemo(() => {
+    const inStock = stockItems.filter((s) => s.quantity > 0);
+    if (!closingTask) return inStock;
+    const taskResId =
+      typeof closingTask.residence === "object" && closingTask.residence !== null
+        ? closingTask.residence._id
+        : closingTask.residence;
+    if (!taskResId) return inStock;
+    const matchingResidence = inStock.filter((s) => {
+      const itemResId =
+        typeof s.residence === "object" && s.residence !== null
+          ? s.residence._id
+          : s.residence;
+      return !itemResId || String(itemResId) === String(taskResId);
+    });
+    return matchingResidence.length > 0 ? matchingResidence : inStock;
+  }, [closingTask, stockItems]);
+
   // Ouverture du BottomSheet de clôture
   const openCloseModal = (task: MaintenanceTaskItem) => {
     setClosingTask(task);
@@ -454,6 +510,39 @@ function MaintenanceInner() {
     setNewChecklistLabel("");
     setClosingCost(String(task.cost ?? 0));
     setClosingNotes(task.notes ?? "");
+    setUsedItems([]);
+    setSelectedStockId("");
+    setSelectedStockQty("1");
+  };
+
+  const handleAddUsedItem = () => {
+    if (!selectedStockId) return;
+    const qty = Math.max(1, Math.floor(Number(selectedStockQty) || 0));
+    const stockObj = stockItems.find((s) => s._id === selectedStockId);
+    if (!stockObj) return;
+
+    const existing = usedItems.find((u) => u.itemId === selectedStockId);
+    const totalRequested = (existing?.quantity ?? 0) + qty;
+    if (totalRequested > stockObj.quantity) {
+      showError(
+        `Quantité demandée supérieure au stock disponible (${stockObj.quantity}) pour "${stockObj.name}".`
+      );
+      return;
+    }
+
+    setUsedItems((prev) =>
+      existing
+        ? prev.map((u) =>
+            u.itemId === selectedStockId ? { ...u, quantity: totalRequested } : u
+          )
+        : [...prev, { itemId: selectedStockId, quantity: qty }]
+    );
+    setSelectedStockId("");
+    setSelectedStockQty("1");
+  };
+
+  const handleRemoveUsedItem = (itemId: string) => {
+    setUsedItems((prev) => prev.filter((u) => u.itemId !== itemId));
   };
 
   const handleToggleChecklistItem = (index: number) => {
@@ -474,6 +563,41 @@ function MaintenanceInner() {
     e.preventDefault();
     if (!closingTask) return;
 
+    // Inclure automatiquement la pièce sélectionnée dans le sélecteur même si l'utilisateur n'a pas cliqué sur "Ajouter"
+    const finalUsedItems: UsedStockEntry[] = usedItems.map((u) => ({
+      itemId: u.itemId,
+      quantity: Number(u.quantity),
+    }));
+
+    if (selectedStockId) {
+      const pendingQty = Math.max(1, Math.floor(Number(selectedStockQty) || 0));
+      const stockObj = stockItems.find((s) => s._id === selectedStockId);
+      const existingIdx = finalUsedItems.findIndex(
+        (u) => u.itemId === selectedStockId
+      );
+      const totalRequested =
+        (existingIdx >= 0 ? finalUsedItems[existingIdx].quantity : 0) + pendingQty;
+
+      if (stockObj && totalRequested > stockObj.quantity) {
+        showError(
+          `Quantité demandée supérieure au stock disponible (${stockObj.quantity}) pour "${stockObj.name}".`
+        );
+        return;
+      }
+
+      if (existingIdx >= 0) {
+        finalUsedItems[existingIdx] = {
+          itemId: selectedStockId,
+          quantity: totalRequested,
+        };
+      } else {
+        finalUsedItems.push({
+          itemId: selectedStockId,
+          quantity: pendingQty,
+        });
+      }
+    }
+
     setIsSubmittingClose(true);
     try {
       const parsedCost = parseFloat(closingCost);
@@ -488,15 +612,19 @@ function MaintenanceInner() {
             cost,
             notes: closingNotes.trim(),
             checklist: closingChecklist,
+            usedItems: finalUsedItems,
           }),
         }
       );
 
       if (isResSuccess(res)) {
         setClosingTask(null);
+        setUsedItems([]);
+        setSelectedStockId("");
+        setSelectedStockQty("1");
         showSuccess(
-          cost > 0
-            ? "Intervention clôturée et dépense de copropriété générée."
+          cost > 0 || finalUsedItems.length > 0
+            ? "Intervention clôturée, stock mis à jour et dépenses synchronisées."
             : "Intervention clôturée avec succès."
         );
         await loadData();
@@ -815,7 +943,8 @@ function MaintenanceInner() {
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {task.cost.toFixed(2)} €
                           </span>
-                          {task.status === MaintenanceStatus.DONE && (
+                          {(task.status === MaintenanceStatus.DONE ||
+                            task.status === MaintenanceStatus.COMPLETED) && (
                             <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
                               Dépense générée
                             </span>
@@ -1122,6 +1251,89 @@ function MaintenanceInner() {
                     Ajouter
                   </Button>
                 </div>
+              </div>
+
+              {/* Pièces et matériel utilisés du stock */}
+              <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Pièces utilisées en stock (optionnel)
+                </label>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex-1">
+                    <Select
+                      value={selectedStockId}
+                      onChange={(e) => setSelectedStockId(e.target.value)}
+                      options={[
+                        { value: "", label: "Sélectionner un article en stock..." },
+                        ...availableStockForClosing.map((s) => ({
+                          value: s._id,
+                          label: `${s.name} (Dispo : ${s.quantity})`,
+                        })),
+                      ]}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={selectedStockQty}
+                      onChange={(e) => setSelectedStockQty(e.target.value)}
+                      placeholder="Qté"
+                      className="min-h-[44px] w-24 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-sky-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddUsedItem}
+                      disabled={!selectedStockId}
+                      className="min-h-[44px]"
+                    >
+                      Ajouter
+                    </Button>
+                  </div>
+                </div>
+
+                {usedItems.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    {usedItems.map((u) => {
+                      const stockObj = stockItems.find((s) => s._id === u.itemId);
+                      const remaining = (stockObj?.quantity ?? 0) - u.quantity;
+                      const threshold =
+                        stockObj?.minQuantity ?? stockObj?.minThreshold ?? 0;
+                      const triggersAlert = remaining <= threshold;
+                      return (
+                        <div
+                          key={u.itemId}
+                          className="flex min-h-[44px] items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-800/60"
+                        >
+                          <div>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {stockObj?.name || u.itemId}
+                            </span>{" "}
+                            <span className="text-slate-500">
+                              × {u.quantity} (reste : {remaining})
+                            </span>
+                            {triggersAlert && (
+                              <span className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                                Seuil d&apos;alerte → Brouillon dépense
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveUsedItem(u.itemId)}
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-rose-600 hover:text-rose-700"
+                            aria-label="Retirer l'article"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Coût de l'intervention */}

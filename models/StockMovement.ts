@@ -7,6 +7,7 @@ export interface IStockMovement {
   type: StockMovementType;
   quantity: number;
   reason?: string;
+  reference?: string;
   performedBy?: Types.ObjectId;
   movementDate: Date;
   createdOffline: boolean;
@@ -34,6 +35,7 @@ const StockMovementSchema = new Schema<IStockMovement, StockMovementModel>(
       },
     },
     reason: { type: String, trim: true },
+    reference: { type: String, trim: true },
     performedBy: { type: Schema.Types.ObjectId, ref: "User" },
     movementDate: { type: Date, default: Date.now },
     createdOffline: { type: Boolean, default: false },
@@ -45,6 +47,10 @@ const StockMovementSchema = new Schema<IStockMovement, StockMovementModel>(
 
 StockMovementSchema.index({ item: 1, movementDate: -1 });
 StockMovementSchema.index({ residence: 1, movementDate: -1 });
+
+if (process.env.NODE_ENV !== "production" && mongoose.models.StockMovement) {
+  delete mongoose.models.StockMovement;
+}
 
 export const StockMovement =
   (mongoose.models.StockMovement as StockMovementModel) ||

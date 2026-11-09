@@ -69,6 +69,10 @@ MaintenanceTaskSchema.index({ residence: 1, status: 1, scheduledDate: 1 });
 MaintenanceTaskSchema.index({ equipment: 1, scheduledDate: -1 });
 MaintenanceTaskSchema.index({ assignedTo: 1, status: 1 });
 
+if (process.env.NODE_ENV !== "production" && mongoose.models.MaintenanceTask) {
+  delete mongoose.models.MaintenanceTask;
+}
+
 export const MaintenanceTask =
   (mongoose.models.MaintenanceTask as MaintenanceTaskModel) ||
   model<IMaintenanceTask, MaintenanceTaskModel>("MaintenanceTask", MaintenanceTaskSchema);
