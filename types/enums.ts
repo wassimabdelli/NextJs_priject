@@ -55,6 +55,8 @@ export const ReminderType = {
   MEETING_TOMORROW: "MEETING_TOMORROW",
   INCIDENT_STATUS: "INCIDENT_STATUS",
   PAYMENT_VALIDATION: "PAYMENT_VALIDATION",
+  ELECTION_UPDATE: "ELECTION_UPDATE",
+  INCIDENT_CREATED: "INCIDENT_CREATED",
 } as const;
 export type ReminderType = (typeof ReminderType)[keyof typeof ReminderType];
 
@@ -362,4 +364,6 @@ export const reminderTypeLabel: Record<ReminderType, string> = {
   MEETING_TOMORROW: "Réunion demain",
   INCIDENT_STATUS: "Statut incident",
   PAYMENT_VALIDATION: "Validation paiement",
+  ELECTION_UPDATE: "Élection syndic",
+  INCIDENT_CREATED: "Nouvel incident",
 };

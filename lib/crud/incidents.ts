@@ -2,6 +2,7 @@ import { createCrudRoutes } from "@/lib/crud/createCrudRoutes";
 import { Incident } from "@/models/Incident";
 import { Residence } from "@/models/Residence";
 import { Apartment } from "@/models/Apartment";
+import { User } from "@/models/User";
 import {
   getResidentApartmentIds,
   getResidentResidenceIds,
@@ -9,11 +10,79 @@ import {
   getTechnicianResidenceIds,
 } from "@/lib/auth-guard";
 import { incidentCreateSchema, incidentEditSchema } from "@/lib/validations/incident";
-import { IncidentStatus, IncidentTimelineType, Role } from "@/types/enums";
+import {
+  incidentCategoryLabel,
+  IncidentStatus,
+  IncidentTimelineType,
+  Priority,
+  priorityLabel,
+  ReminderType,
+  Role,
+  type IncidentCategory,
+} from "@/types/enums";
 import { HttpError } from "@/lib/api";
 import { computeSlaDueAt } from "@/lib/incidents/sla";
 import { findTechnicianForCategory } from "@/lib/incidents/autoAssign";
-import { Priority } from "@/types/enums";
+import { notifyUser } from "@/lib/notifications/notify";
+
+/**
+ * Notifie le syndic de la résidence (In-App + WhatsApp/Push selon ses préférences)
+ * dès qu'un nouvel incident est créé.
+ */
+async function notifySyndicOnIncidentCreated(doc: {
+  _id: unknown;
+  residence: unknown;
+  title?: string;
+  category?: IncidentCategory;
+  priority?: Priority;
+  apartment?: unknown;
+}): Promise<void> {
+  try {
+    const residence = await Residence.findById(doc.residence)
+      .select("name syndic")
+      .lean();
+
+    const recipientIds = new Set<string>();
+    if (residence?.syndic) {
+      recipientIds.add(String(residence.syndic));
+    } else {
+      // Repli si aucun syndic n'est encore affecté à la résidence
+      const syndics = await User.find({ role: Role.SYNDIC, isActive: true })
+        .select("_id")
+        .lean();
+      for (const s of syndics) recipientIds.add(String(s._id));
+    }
+
+    if (recipientIds.size === 0) return;
+
+    const catLabel = doc.category ? incidentCategoryLabel[doc.category] : "Incident";
+    const prioLabel = doc.priority ? priorityLabel[doc.priority] : "Moyenne";
+    const apt = doc.apartment
+      ? await Apartment.findById(doc.apartment).select("number").lean()
+      : null;
+    const lotText = apt?.number ? ` · Lot ${apt.number}` : "";
+    const residenceName = residence?.name || "Résidence";
+
+    const title = "Nouvel incident signalé";
+    const body = `${residenceName}${lotText} · ${catLabel} (priorité ${prioLabel}) : ${doc.title || "Sans titre"}`;
+
+    for (const userId of recipientIds) {
+      await notifyUser({
+        userId,
+        type: ReminderType.INCIDENT_CREATED,
+        title,
+        body,
+        dedupeKey: `incident-created:${String(doc._id)}:${userId}`,
+        meta: {
+          incidentId: String(doc._id),
+          residenceId: String(doc.residence),
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[incidents] Échec notification syndic à la création:", err);
+  }
+}
 
 export const incidentCrudRoutes = createCrudRoutes({
   model: Incident,
@@ -80,6 +149,8 @@ export const incidentCrudRoutes = createCrudRoutes({
   },
 
   afterCreate: async (doc, user) => {
+    await notifySyndicOnIncidentCreated(doc);
+
     // Auto-assignation par catégorie si aucun technicien n'est déjà posé
     if (doc.assignedTo) return;
     const techId = await findTechnicianForCategory(
@@ -88,21 +159,31 @@ export const incidentCrudRoutes = createCrudRoutes({
     );
     if (!techId) return;
 
+    const nextStatus =
+      doc.status === IncidentStatus.REPORTED
+        ? IncidentStatus.ASSIGNED
+        : doc.status;
+    const assignedEntry = {
+      at: new Date(),
+      by: user.id,
+      type: IncidentTimelineType.ASSIGNED,
+      message: "Technicien assigné automatiquement selon la catégorie",
+      meta: { assignedTo: techId, auto: true },
+    };
+
     doc.assignedTo = techId;
-    if (doc.status === IncidentStatus.REPORTED) {
-      doc.status = IncidentStatus.ASSIGNED;
+    doc.status = nextStatus;
+    doc.timeline = [...(doc.timeline || []), assignedEntry];
+
+    // createCrudRoutes passe un objet simple (.toObject()) à afterCreate
+    if (typeof doc.save === "function") {
+      await doc.save();
+    } else {
+      await Incident.findByIdAndUpdate(doc._id, {
+        $set: { assignedTo: techId, status: nextStatus },
+        $push: { timeline: assignedEntry },
+      });
     }
-    doc.timeline = [
-      ...(doc.timeline || []),
-      {
-        at: new Date(),
-        by: user.id,
-        type: IncidentTimelineType.ASSIGNED,
-        message: "Technicien assigné automatiquement selon la catégorie",
-        meta: { assignedTo: techId, auto: true },
-      },
-    ];
-    await doc.save();
     if (typeof doc.populate === "function") {
       await doc.populate([
         { path: "assignedTo", select: "name email phone" },

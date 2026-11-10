@@ -11,7 +11,10 @@ import { Residence } from "@/models/Residence";
 import { Announcement } from "@/models/Announcement";
 import { electionCreateSchema } from "@/lib/validations/election";
 import { Role, ElectionPhase } from "@/types/enums";
-import { checkAndProgressElection } from "@/lib/elections/workflow";
+import {
+  checkAndProgressElection,
+  notifyAdminsElectionPhase,
+} from "@/lib/elections/workflow";
 
 /**
  * GET /api/elections
@@ -134,6 +137,14 @@ export const POST = withAuth(
       content: `L'élection du nouveau syndic de la résidence est officiellement lancée. Les copropriétaires souhaitant postuler peuvent déposer leur candidature jusqu'au ${candidacyEndStr}. La période de vote débutera immédiatement après pour s'achever le ${votingEndStr}.`,
       isPinned: true,
       publishedAt: new Date(),
+    });
+
+    await notifyAdminsElectionPhase({
+      electionId: election._id,
+      residenceId: residence,
+      title: body.title,
+      phase: ElectionPhase.CANDIDACY,
+      summary: `Appel à candidatures ouvert jusqu'au ${candidacyEndStr} (votes jusqu'au ${votingEndStr}).`,
     });
 
     const populated = await Election.findById(election._id)

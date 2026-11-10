@@ -103,48 +103,100 @@ export async function notifyUser(input: NotifyInput): Promise<void> {
 }
 
 /**
- * Envoi via WaAPI (https://waapi.app).
- * Env : WHATSAPP_TOKEN (Bearer) + WAAPI_INSTANCE_ID (après création d'instance + QR).
- * Sans les deux → log uniquement (dev).
+ * Normalise un numéro vers le format E.164 Meta (ex. 21626801850).
+ * Préfixe automatiquement 216 pour un numéro tunisien local à 8 chiffres.
  */
-async function sendWhatsApp(phone: string, text: string): Promise<void> {
-  const token = process.env.WHATSAPP_TOKEN;
-  const instanceId = process.env.WAAPI_INSTANCE_ID;
-  // Format WaAPI : indicatif + numéro, chiffres seuls (ex. 216XXXXXXXX)
-  const digits = phone.replace(/\D/g, "");
-  const chatId = digits.includes("@") ? digits : `${digits}@c.us`;
+export function formatWhatsAppPhone(phone: string): string {
+  const trimmed = phone.trim();
+  let digits = trimmed.replace(/\D/g, "");
+  if (digits.startsWith("00") && digits.length > 10) {
+    digits = digits.slice(2);
+  }
+  if (digits.length === 8) {
+    digits = `216${digits}`;
+  }
+  if (digits.length < 8) {
+    throw new Error("Numéro WhatsApp invalide (minimum 8 chiffres requis).");
+  }
+  return digits;
+}
 
-  if (!token || !instanceId) {
-    console.info(`[whatsapp:dev] → ${chatId}: ${text.slice(0, 120)}`);
-    return;
+/** @deprecated Alias pour compatibilité — utilise formatWhatsAppPhone */
+export function formatWhatsAppChatId(phone: string): string {
+  return formatWhatsAppPhone(phone) + "@c.us";
+}
+
+export type WhatsAppProvider = "meta" | "none";
+
+/**
+ * Indique si Meta WhatsApp Cloud API est configuré côté serveur.
+ */
+export function getWhatsAppConfigStatus(): {
+  configured: boolean;
+  provider: WhatsAppProvider;
+  missing: string[];
+} {
+  const hasToken = Boolean(process.env.META_WA_TOKEN?.trim());
+  const hasPhoneId = Boolean(process.env.META_WA_PHONE_ID?.trim());
+  if (hasToken && hasPhoneId) {
+    return { configured: true, provider: "meta", missing: [] };
+  }
+  const missing: string[] = [];
+  if (!hasToken) missing.push("META_WA_TOKEN");
+  if (!hasPhoneId) missing.push("META_WA_PHONE_ID");
+  return { configured: false, provider: "none", missing };
+}
+
+/**
+ * Envoi via Meta WhatsApp Cloud API (gratuit, sans carte bancaire).
+ * Docs : https://developers.facebook.com/docs/whatsapp/cloud-api/messages/text-messages
+ */
+export async function sendWhatsApp(
+  phone: string,
+  text: string
+): Promise<{ chatId: string; provider: Exclude<WhatsAppProvider, "none"> }> {
+  const to = formatWhatsAppPhone(phone);
+  const { configured, missing } = getWhatsAppConfigStatus();
+
+  if (!configured) {
+    console.info(`[whatsapp:dev] (${missing.join(", ")} manquant) → ${to}: ${text.slice(0, 120)}`);
+    throw new Error(`Configuration WhatsApp incomplète (${missing.join(", ")} manquant dans .env.local).`);
   }
 
-  const res = await fetch(
-    `https://waapi.app/api/v1/instances/${instanceId}/client/action/send-message`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        chatId,
-        message: text.slice(0, 4000),
-      }),
-    }
-  );
+  const token = process.env.META_WA_TOKEN!.trim();
+  const phoneId = process.env.META_WA_PHONE_ID!.trim();
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://graph.facebook.com/v21.0/${encodeURIComponent(phoneId)}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "text",
+          text: { body: text.slice(0, 4096) },
+        }),
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "connexion impossible";
+    throw new Error(`Meta API injoignable (${msg}). Vérifiez votre connexion.`);
+  }
 
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(`WaAPI ${res.status}: ${JSON.stringify(payload)}`);
+    const detail = payload?.error?.message || JSON.stringify(payload);
+    throw new Error(`Meta WhatsApp API ${res.status}: ${detail}`);
   }
-  // WaAPI peut renvoyer HTTP 200 avec data.status === "error"
-  if (payload?.data?.status === "error" || payload?.status === "error") {
-    throw new Error(
-      `WaAPI action error: ${payload?.data?.message || payload?.message || "échec"}`
-    );
-  }
+
+  return { chatId: to, provider: "meta" };
 }
 
 /**
