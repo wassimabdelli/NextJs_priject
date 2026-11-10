@@ -217,10 +217,10 @@ function IncidentsContent() {
         typeof globalThis.crypto?.randomUUID === "function"
           ? globalThis.crypto.randomUUID()
           : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
-              const random = Math.floor(Math.random() * 16);
-              const value = character === "x" ? random : (random & 0x3) | 0x8;
-              return value.toString(16);
-            });
+            const random = Math.floor(Math.random() * 16);
+            const value = character === "x" ? random : (random & 0x3) | 0x8;
+            return value.toString(16);
+          });
     }
     return clientIdRef.current;
   };
@@ -337,65 +337,17 @@ function IncidentsContent() {
         if (data?.user) {
           setCurrentUser({ id: data.user.id, role: data.user.role as Role });
           if (data.user.role === Role.ADMIN || data.user.role === Role.SYNDIC) {
-            Promise.all([
-              fetch("/api/users?role=TECHNICIAN&limit=50").then((r) =>
-                r.ok ? r.json() : null
-              ),
-              fetch("/api/employees?limit=50").then((r) =>
-                r.ok ? r.json() : null
-              ),
-            ])
-              .then(([techsRes, empsRes]) => {
-                const techUsers = Array.isArray(techsRes)
-                  ? techsRes
-                  : techsRes?.data || [];
-                const empDocs = Array.isArray(empsRes)
-                  ? empsRes
-                  : empsRes?.data || [];
-
-                const merged: Array<{ _id: string; name?: string; email?: string }> = [
-                  ...techUsers,
-                ];
-                const seenIds = new Set(merged.map((u) => String(u._id)));
-                const seenEmails = new Set(
-                  merged
-                    .map((u) => u.email?.toLowerCase().trim())
-                    .filter(Boolean)
-                );
-
-                for (const emp of empDocs) {
-                  const linkedUserId =
-                    typeof emp.user === "object" && emp.user !== null
-                      ? emp.user._id
-                      : emp.user;
-                  const targetId = String(linkedUserId || emp._id);
-                  const email = (
-                    emp.email ||
-                    (typeof emp.user === "object" ? emp.user?.email : "") ||
-                    ""
-                  )
-                    .toLowerCase()
-                    .trim();
-
-                  if (seenIds.has(targetId) || (email && seenEmails.has(email))) {
-                    continue;
-                  }
-                  seenIds.add(targetId);
-                  if (email) seenEmails.add(email);
-                  merged.push({
-                    _id: targetId,
-                    name: emp.fullName || emp.name || "Employé",
-                    email: email || emp.position || "RH",
-                  });
-                }
-
-                setTechnicians(merged);
+            fetch("/api/users?role=TECHNICIAN&limit=50")
+              .then((r) => (r.ok ? r.json() : null))
+              .then((techs) => {
+                const list = Array.isArray(techs) ? techs : techs?.data || [];
+                setTechnicians(list);
               })
-              .catch(() => {});
+              .catch(() => { });
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Compression photo côté client via canvas (strictement <= 1 Mo)
@@ -570,12 +522,9 @@ function IncidentsContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assignedTo: selectedTechId }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 400 || !res.ok) {
-        const backendError =
-          data?.error || "Impossible d'assigner ce technicien à l'incident.";
-        setErrorMessage(backendError);
-        return;
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erreur lors de l'assignation");
       }
       setIncidents((prev) =>
         prev.map((inc) => (inc._id === assigningIncident._id ? { ...inc, ...data } : inc))
@@ -640,31 +589,31 @@ function IncidentsContent() {
   ];
   const groupedIncidentRows = canAssign
     ? [
-        {
-          key: "unassigned",
-          label: "À assigner",
-          incidents: filteredIncidents.filter((incident) =>
-            incident.status !== IncidentStatus.RESOLVED && !incident.assignedTo
-          ),
-        },
-        {
-          key: "in-progress",
-          label: "En cours",
-          incidents: filteredIncidents.filter((incident) =>
-            incident.status !== IncidentStatus.RESOLVED && Boolean(incident.assignedTo)
-          ),
-        },
-        {
-          key: "resolved",
-          label: "Résolues",
-          incidents: filteredIncidents.filter((incident) => incident.status === IncidentStatus.RESOLVED),
-        },
-      ].flatMap((group) => [
-        { kind: "group" as const, key: group.key, label: group.label, count: group.incidents.length },
-        ...(!collapsedIncidentGroups[group.key]
-          ? group.incidents.map((incident) => ({ kind: "incident" as const, incident }))
-          : []),
-      ])
+      {
+        key: "unassigned",
+        label: "À assigner",
+        incidents: filteredIncidents.filter((incident) =>
+          incident.status !== IncidentStatus.RESOLVED && !incident.assignedTo
+        ),
+      },
+      {
+        key: "in-progress",
+        label: "En cours",
+        incidents: filteredIncidents.filter((incident) =>
+          incident.status !== IncidentStatus.RESOLVED && Boolean(incident.assignedTo)
+        ),
+      },
+      {
+        key: "resolved",
+        label: "Résolues",
+        incidents: filteredIncidents.filter((incident) => incident.status === IncidentStatus.RESOLVED),
+      },
+    ].flatMap((group) => [
+      { kind: "group" as const, key: group.key, label: group.label, count: group.incidents.length },
+      ...(!collapsedIncidentGroups[group.key]
+        ? group.incidents.map((incident) => ({ kind: "incident" as const, incident }))
+        : []),
+    ])
     : filteredIncidents.map((incident) => ({ kind: "incident" as const, incident }));
 
   return (
@@ -714,112 +663,112 @@ function IncidentsContent() {
 
         {/* Filtres et recherche */}
         <div className="sticky top-16 z-20 space-y-3 rounded-2xl border border-slate-200/90 bg-white/90 p-3 shadow-sm backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/90 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Rechercher un incident (ex: fuite, ascenseur)..."
-              value={search}
-              onChange={(e) => {
-                setPage(1);
-                setSearch(e.target.value);
-              }}
-              className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-base sm:text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un incident (ex: fuite, ascenseur)..."
+                value={search}
+                onChange={(e) => {
+                  setPage(1);
+                  setSearch(e.target.value);
+                }}
+                className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-base sm:text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
-            <Filter className="h-4 w-4 text-slate-400 shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setPage(1);
-                setStatusFilter(e.target.value);
-              }}
-              className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="ALL">Tous les statuts</option>
-              <option value="REPORTED">Signalé</option>
-              <option value="ASSIGNED">Assigné</option>
-              <option value="IN_PROGRESS">En cours</option>
-              <option value="RESOLVED">Résolu</option>
-            </select>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+              <Filter className="h-4 w-4 text-slate-400 shrink-0" />
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setPage(1);
+                  setStatusFilter(e.target.value);
+                }}
+                className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="ALL">Tous les statuts</option>
+                <option value="REPORTED">Signalé</option>
+                <option value="ASSIGNED">Assigné</option>
+                <option value="IN_PROGRESS">En cours</option>
+                <option value="RESOLVED">Résolu</option>
+              </select>
 
-            <select
-              value={categoryFilter}
-              onChange={(e) => {
-                setPage(1);
-                setCategoryFilter(e.target.value);
-              }}
-              className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="ALL">Toutes catégories</option>
-              <option value="PLUMBING">Plomberie</option>
-              <option value="ELECTRICITY">Électricité</option>
-              <option value="ELEVATOR">Ascenseur</option>
-              <option value="CLEANING">Nettoyage</option>
-              <option value="SECURITY">Sécurité</option>
-              <option value="OTHER">Autre</option>
-            </select>
+              <select
+                value={categoryFilter}
+                onChange={(e) => {
+                  setPage(1);
+                  setCategoryFilter(e.target.value);
+                }}
+                className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="ALL">Toutes catégories</option>
+                <option value="PLUMBING">Plomberie</option>
+                <option value="ELECTRICITY">Électricité</option>
+                <option value="ELEVATOR">Ascenseur</option>
+                <option value="CLEANING">Nettoyage</option>
+                <option value="SECURITY">Sécurité</option>
+                <option value="OTHER">Autre</option>
+              </select>
 
-            <select
-              aria-label="Filtrer par priorité"
-              value={priorityFilter}
-              onChange={(e) => {
-                setPage(1);
-                setPriorityFilter(e.target.value);
-              }}
-              className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="ALL">Toutes priorités</option>
-              <option value="URGENT">Urgente</option>
-              <option value="HIGH">Haute</option>
-              <option value="MEDIUM">Moyenne</option>
-              <option value="LOW">Basse</option>
-            </select>
+              <select
+                aria-label="Filtrer par priorité"
+                value={priorityFilter}
+                onChange={(e) => {
+                  setPage(1);
+                  setPriorityFilter(e.target.value);
+                }}
+                className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="ALL">Toutes priorités</option>
+                <option value="URGENT">Urgente</option>
+                <option value="HIGH">Haute</option>
+                <option value="MEDIUM">Moyenne</option>
+                <option value="LOW">Basse</option>
+              </select>
 
-            {(currentUser?.role === Role.ADMIN || currentUser?.role === Role.SYNDIC) && (
-              <>
-                <select
-                  aria-label="Filtrer par résidence"
-                  value={residenceFilter}
-                  onChange={(e) => {
-                    setPage(1);
-                    setResidenceFilter(e.target.value);
-                  }}
-                  className="min-h-[44px] max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                >
-                  <option value="ALL">Toutes résidences</option>
-                  {residences.map((residence) => <option key={residence._id} value={residence._id}>{residence.name}</option>)}
-                </select>
-                <select
-                  aria-label="Filtrer par technicien"
-                  value={technicianFilter}
-                  onChange={(e) => {
-                    setPage(1);
-                    setTechnicianFilter(e.target.value);
-                  }}
-                  className="min-h-[44px] max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                >
-                  <option value="ALL">Tous les techniciens</option>
-                  {technicians.map((technician) => <option key={technician._id} value={technician._id}>{technician.name}</option>)}
-                </select>
-              </>
-            )}
+              {(currentUser?.role === Role.ADMIN || currentUser?.role === Role.SYNDIC) && (
+                <>
+                  <select
+                    aria-label="Filtrer par résidence"
+                    value={residenceFilter}
+                    onChange={(e) => {
+                      setPage(1);
+                      setResidenceFilter(e.target.value);
+                    }}
+                    className="min-h-[44px] max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <option value="ALL">Toutes résidences</option>
+                    {residences.map((residence) => <option key={residence._id} value={residence._id}>{residence.name}</option>)}
+                  </select>
+                  <select
+                    aria-label="Filtrer par technicien"
+                    value={technicianFilter}
+                    onChange={(e) => {
+                      setPage(1);
+                      setTechnicianFilter(e.target.value);
+                    }}
+                    className="min-h-[44px] max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <option value="ALL">Tous les techniciens</option>
+                    {technicians.map((technician) => <option key={technician._id} value={technician._id}>{technician.name}</option>)}
+                  </select>
+                </>
+              )}
 
-            <select
-              aria-label="Trier les réclamations"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="newest">Plus récentes</option>
-              <option value="oldest">Plus anciennes</option>
-              <option value="priority">Priorité</option>
-              <option value="status">Statut</option>
-            </select>
-          </div>
+              <select
+                aria-label="Trier les réclamations"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base sm:text-sm font-medium text-slate-700 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="newest">Plus récentes</option>
+                <option value="oldest">Plus anciennes</option>
+                <option value="priority">Priorité</option>
+                <option value="status">Statut</option>
+              </select>
+            </div>
 
           </div>
 
@@ -861,10 +810,10 @@ function IncidentsContent() {
               isFilterActive
                 ? "Aucune panne ou anomalie ne correspond à votre filtre actuel."
                 : isResidentRole(currentUser?.role)
-                ? "Vous n'avez signalé aucun incident pour le moment."
-                : currentUser?.role === Role.TECHNICIAN
-                ? "Aucune intervention ne vous est assignée pour le moment."
-                : "Aucun incident enregistré."
+                  ? "Vous n'avez signalé aucun incident pour le moment."
+                  : currentUser?.role === Role.TECHNICIAN
+                    ? "Aucune intervention ne vous est assignée pour le moment."
+                    : "Aucun incident enregistré."
             }
             action={
               canCreateIncident && !isFilterActive ? (
@@ -1019,9 +968,8 @@ function IncidentsContent() {
                     {/* Description limitée à 3 lignes avec voir plus/moins */}
                     <div>
                       <p
-                        className={`text-xs leading-relaxed text-slate-600 dark:text-slate-300 ${
-                          !isExpanded ? "line-clamp-3" : ""
-                        }`}
+                        className={`text-xs leading-relaxed text-slate-600 dark:text-slate-300 ${!isExpanded ? "line-clamp-3" : ""
+                          }`}
                       >
                         {desc}
                       </p>
@@ -1064,36 +1012,18 @@ function IncidentsContent() {
                     {/* Technicien assigné */}
                     <div className="text-xs">
                       {techName ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600 dark:text-slate-300">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <UserCheck className="h-3.5 w-3.5 text-sky-500 shrink-0" />
-                            <span>
-                              Technicien : <strong>{techName}</strong>
-                            </span>
-                            {techPhone && (
-                              <a
-                                href={`tel:${techPhone}`}
-                                className="inline-flex items-center gap-1 text-sky-600 font-semibold underline hover:text-sky-700 dark:text-sky-400"
-                              >
-                                ({techPhone})
-                              </a>
-                            )}
-                          </div>
-                          {canAssign && inc.status !== IncidentStatus.RESOLVED && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="min-h-[44px] px-3 text-xs"
-                              onClick={() => {
-                                setErrorMessage(null);
-                                setAssigningIncident(inc);
-                                setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
-                              }}
+                        <div className="flex flex-wrap items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                          <UserCheck className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                          <span>
+                            Technicien : <strong>{techName}</strong>
+                          </span>
+                          {techPhone && (
+                            <a
+                              href={`tel:${techPhone}`}
+                              className="inline-flex items-center gap-1 text-sky-600 font-semibold underline hover:text-sky-700 dark:text-sky-400"
                             >
-                              <UserCheck aria-hidden="true" className="h-3.5 w-3.5" />
-                              Réassigner
-                            </Button>
+                              ({techPhone})
+                            </a>
                           )}
                         </div>
                       ) : canAssign ? (
@@ -1102,13 +1032,12 @@ function IncidentsContent() {
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             Non assigné · à prendre en charge
                           </span>
-                          {inc.status !== IncidentStatus.RESOLVED && (
+                          {inc.status === IncidentStatus.REPORTED && (
                             <Button
                               type="button"
                               size="sm"
                               className="min-h-[44px] bg-amber-600 px-3 text-xs text-white hover:bg-amber-700"
                               onClick={() => {
-                                setErrorMessage(null);
                                 setAssigningIncident(inc);
                                 setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
                               }}
@@ -1214,23 +1143,11 @@ function IncidentsContent() {
         {/* Modal d'assignation de technicien */}
         <BottomSheet
           isOpen={!!assigningIncident}
-          onClose={() => {
-            setAssigningIncident(null);
-            setErrorMessage(null);
-          }}
+          onClose={() => setAssigningIncident(null)}
           title="Assigner un technicien"
           description="Sélectionnez le technicien pour intervenir sur cet incident. Le statut passera à ASSIGNÉ."
         >
           <form onSubmit={handleAssignTechnician} className="space-y-4 pt-2">
-            {errorMessage && (
-              <div
-                role="alert"
-                className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400"
-              >
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
             {technicians.length === 0 ? (
               <p className="text-sm text-slate-500">
                 Aucun compte avec le rôle TECHNICIEN trouvé. Veuillez d&apos;abord en créer un dans la gestion des utilisateurs.
@@ -1272,165 +1189,165 @@ function IncidentsContent() {
             title="Signaler un incident"
             description="Enregistrez une anomalie même hors ligne, avec jusqu'à 3 photos (1 Mo chacune)."
           >
-          <form onSubmit={handleCreateIncident} className="space-y-5 pt-2">
-            {errorMessage && (
-              <div className="rounded-xl bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400">
-                {errorMessage}
-              </div>
-            )}
-
-            <section className="space-y-3">
-              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Où ?</h3>
-              {residences.length > 1 ? (
-                <Select
-                  label="Résidence concernée"
-                  value={residenceId}
-                  onChange={(e) => setResidenceId(e.target.value)}
-                  required
-                >
-                  {residences.map((r) => (
-                    <option key={r._id} value={r._id}>
-                      {r.name} ({r.city})
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  {residences[0]
-                    ? [residences[0].name, residences[0].city].filter(Boolean).join(" · ")
-                    : "Aucune résidence disponible"}
+            <form onSubmit={handleCreateIncident} className="space-y-5 pt-2">
+              {errorMessage && (
+                <div className="rounded-xl bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  {errorMessage}
                 </div>
               )}
-            </section>
 
-            <section className="space-y-3">
-              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Quoi ?</h3>
-              <Input
-                label="Titre de l'incident"
-                placeholder="Facultatif — généré depuis la photo ou la description"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setAcceptedTriage(null);
-                }}
-              />
+              <section className="space-y-3">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Où ?</h3>
+                {residences.length > 1 ? (
+                  <Select
+                    label="Résidence concernée"
+                    value={residenceId}
+                    onChange={(e) => setResidenceId(e.target.value)}
+                    required
+                  >
+                    {residences.map((r) => (
+                      <option key={r._id} value={r._id}>
+                        {r.name} ({r.city})
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    {residences[0]
+                      ? [residences[0].name, residences[0].city].filter(Boolean).join(" · ")
+                      : "Aucune résidence disponible"}
+                  </div>
+                )}
+              </section>
 
-              <div className={`grid gap-3 ${residentWithoutPhoto ? "grid-cols-1" : "grid-cols-2"}`}>
-                <Select
-                  label="Type de problème"
-                  value={category}
+              <section className="space-y-3">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Quoi ?</h3>
+                <Input
+                  label="Titre de l'incident"
+                  placeholder="Facultatif — généré depuis la photo ou la description"
+                  value={title}
                   onChange={(e) => {
-                    setCategory(e.target.value as IncidentCategory);
+                    setTitle(e.target.value);
                     setAcceptedTriage(null);
                   }}
-                >
-                  <option value={IncidentCategory.PLUMBING}>Plomberie</option>
-                  <option value={IncidentCategory.ELECTRICITY}>Électricité</option>
-                  <option value={IncidentCategory.ELEVATOR}>Ascenseur</option>
-                  <option value={IncidentCategory.CLEANING}>Nettoyage</option>
-                  <option value={IncidentCategory.SECURITY}>Sécurité</option>
-                  <option value={IncidentCategory.OTHER}>Autre</option>
-                </Select>
+                />
 
-                {!residentWithoutPhoto && (
+                <div className={`grid gap-3 ${residentWithoutPhoto ? "grid-cols-1" : "grid-cols-2"}`}>
                   <Select
-                    label="Priorité"
-                    value={priority}
+                    label="Type de problème"
+                    value={category}
                     onChange={(e) => {
-                      setPriority(e.target.value as Priority);
+                      setCategory(e.target.value as IncidentCategory);
                       setAcceptedTriage(null);
                     }}
                   >
-                    <option value={Priority.LOW}>Basse</option>
-                    <option value={Priority.MEDIUM}>Moyenne</option>
-                    <option value={Priority.HIGH}>Haute</option>
-                    <option value={Priority.URGENT}>Urgente</option>
+                    <option value={IncidentCategory.PLUMBING}>Plomberie</option>
+                    <option value={IncidentCategory.ELECTRICITY}>Électricité</option>
+                    <option value={IncidentCategory.ELEVATOR}>Ascenseur</option>
+                    <option value={IncidentCategory.CLEANING}>Nettoyage</option>
+                    <option value={IncidentCategory.SECURITY}>Sécurité</option>
+                    <option value={IncidentCategory.OTHER}>Autre</option>
                   </Select>
+
+                  {!residentWithoutPhoto && (
+                    <Select
+                      label="Priorité"
+                      value={priority}
+                      onChange={(e) => {
+                        setPriority(e.target.value as Priority);
+                        setAcceptedTriage(null);
+                      }}
+                    >
+                      <option value={Priority.LOW}>Basse</option>
+                      <option value={Priority.MEDIUM}>Moyenne</option>
+                      <option value={Priority.HIGH}>Haute</option>
+                      <option value={Priority.URGENT}>Urgente</option>
+                    </Select>
+                  )}
+                </div>
+
+                {residentWithoutPhoto && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Sans photo, vous n&apos;avez pas à choisir la priorité. Elle sera provisoirement enregistrée comme moyenne et pourra être réévaluée par le syndic.
+                  </p>
                 )}
-              </div>
 
-              {residentWithoutPhoto && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Sans photo, vous n&apos;avez pas à choisir la priorité. Elle sera provisoirement enregistrée comme moyenne et pourra être réévaluée par le syndic.
-                </p>
-              )}
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="incident-description" className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
+                    Description détaillée
+                  </label>
+                  <textarea
+                    id="incident-description"
+                    rows={3}
+                    placeholder="Indiquez l'emplacement précis et l'ampleur du problème..."
+                    minLength={5}
+                    maxLength={2000}
+                    value={description}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      setAcceptedTriage(null);
+                    }}
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    required
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="incident-description" className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
-                  Description détaillée
-                </label>
-                <textarea
-                  id="incident-description"
-                  rows={3}
-                  placeholder="Indiquez l'emplacement précis et l'ampleur du problème..."
-                  minLength={5}
-                  maxLength={2000}
-                  value={description}
-                  onChange={(e) => {
-                    setDescription(e.target.value);
-                    setAcceptedTriage(null);
-                  }}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                  required
-                />
-              </div>
+                {photos.length > 0 && (
+                  <AiTriagePanel
+                    title={title}
+                    description={description}
+                    files={aiFiles}
+                    onApply={(suggestion) => {
+                      setTitle(suggestion.title);
+                      setDescription(suggestion.description);
+                      setCategory(suggestion.category as IncidentCategory);
+                      setPriority(suggestion.priority as Priority);
+                    }}
+                    onSuggestionAccepted={setAcceptedTriage}
+                  />
+                )}
 
-              {photos.length > 0 && (
-                <AiTriagePanel
+                <IncidentFormAssist
                   title={title}
                   description={description}
-                  files={aiFiles}
+                  residenceId={residenceId}
+                  onMatchesChange={handleDuplicateMatchesChange}
+                  extraActions={(item) => (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <a
+                        href={`/incidents?incident=${encodeURIComponent(item.incidentId)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-300 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        Ouvrir le dossier
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setDuplicateDismissed(true)}
+                        className="inline-flex min-h-[40px] items-center rounded-lg border border-amber-300 px-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950/40"
+                      >
+                        Ce n&apos;est pas un doublon
+                      </button>
+                    </div>
+                  )}
                   onApply={(suggestion) => {
-                    setTitle(suggestion.title);
-                    setDescription(suggestion.description);
+                    if (suggestion.title) setTitle(suggestion.title);
                     setCategory(suggestion.category as IncidentCategory);
-                    setPriority(suggestion.priority as Priority);
+                    if (!residentWithoutPhoto) setPriority(suggestion.priority as Priority);
+                    setAcceptedTriage(null);
                   }}
-                  onSuggestionAccepted={setAcceptedTriage}
                 />
-              )}
+              </section>
 
-              <IncidentFormAssist
-                title={title}
-                description={description}
-                residenceId={residenceId}
-                onMatchesChange={handleDuplicateMatchesChange}
-                extraActions={(item) => (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <a
-                      href={`/incidents?incident=${encodeURIComponent(item.incidentId)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex min-h-[40px] items-center rounded-lg border border-slate-300 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                    >
-                      Ouvrir le dossier
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => setDuplicateDismissed(true)}
-                      className="inline-flex min-h-[40px] items-center rounded-lg border border-amber-300 px-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950/40"
-                    >
-                      Ce n&apos;est pas un doublon
-                    </button>
-                  </div>
-                )}
-                onApply={(suggestion) => {
-                  if (suggestion.title) setTitle(suggestion.title);
-                  setCategory(suggestion.category as IncidentCategory);
-                  if (!residentWithoutPhoto) setPriority(suggestion.priority as Priority);
-                  setAcceptedTriage(null);
-                }}
-              />
-            </section>
-
-            {strongDuplicateCount > 0 && !duplicateDismissed && (
-              <div
-                role="alert"
-                className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
-              >
-                {strongDuplicateCount} correspondance(s) forte(s) détectée(s).
-                Vérifiez le dossier existant avant d&apos;envoyer, ou confirmez qu&apos;il
-                ne s&apos;agit pas du même problème.
+              {strongDuplicateCount > 0 && !duplicateDismissed && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  {strongDuplicateCount} correspondance(s) forte(s) détectée(s).
+                  Vérifiez le dossier existant avant d&apos;envoyer, ou confirmez qu&apos;il
+                  ne s&apos;agit pas du même problème.
                   <button
                     type="button"
                     onClick={() => setDuplicateDismissed(true)}
@@ -1438,89 +1355,88 @@ function IncidentsContent() {
                   >
                     Confirmer : créer un nouveau signalement
                   </button>
-              </div>
-            )}
+                </div>
+              )}
 
-            <section className="space-y-3">
-              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Preuves</h3>
-              <label className="block text-xs text-slate-500 dark:text-slate-400">
-                Photos du problème (compression &le; 1 Mo par photo, jusqu&apos;à 3; disponibles hors ligne)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                ref={fileInputRef}
-                onChange={handlePhotoUpload}
-                className="hidden"
+              <section className="space-y-3">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Preuves</h3>
+                <label className="block text-xs text-slate-500 dark:text-slate-400">
+                  Photos du problème (compression &le; 1 Mo par photo, jusqu&apos;à 3; disponibles hors ligne)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 3 }, (_, slotIndex) => {
+                    const photo = photos[slotIndex];
+                    if (photo) {
+                      return (
+                        <div
+                          key={slotIndex}
+                          className="relative aspect-square min-h-20 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={photo} alt={`Photo du problème ${slotIndex + 1}`} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotos((previous) => previous.filter((_, index) => index !== slotIndex));
+                              setAiFiles((previous) => previous.filter((_, index) => index !== slotIndex));
+                              setAcceptedTriage(null);
+                            }}
+                            className="absolute right-1 top-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-900/80 text-white hover:bg-rose-600"
+                            aria-label={`Supprimer la photo ${slotIndex + 1}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <button
+                        key={slotIndex}
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex aspect-square min-h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-xs font-medium text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:bg-slate-800"
+                        aria-label={`Ajouter une photo, emplacement ${slotIndex + 1}`}
+                      >
+                        <Camera aria-hidden="true" className="h-5 w-5 text-sky-500" />
+                        <span>Ajouter</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <AiDiagnosticButton
+                photos={photos}
+                onResult={(ai) => {
+                  setTitle(ai.title);
+                  setDescription(
+                    ai.description + "\n\nActions reco: " + ai.checklist.join(", ")
+                  );
+                  setCategory(ai.category);
+                  setPriority(ai.priority);
+                }}
               />
 
-              <div className="grid grid-cols-3 gap-2">
-                {Array.from({ length: 3 }, (_, slotIndex) => {
-                  const photo = photos[slotIndex];
-                  if (photo) {
-                    return (
-                      <div
-                        key={slotIndex}
-                        className="relative aspect-square min-h-20 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo} alt={`Photo du problème ${slotIndex + 1}`} className="h-full w-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPhotos((previous) => previous.filter((_, index) => index !== slotIndex));
-                            setAiFiles((previous) => previous.filter((_, index) => index !== slotIndex));
-                            setAcceptedTriage(null);
-                          }}
-                          className="absolute right-1 top-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-900/80 text-white hover:bg-rose-600"
-                          aria-label={`Supprimer la photo ${slotIndex + 1}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
-                  }
-                  return (
-                    <button
-                      key={slotIndex}
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex aspect-square min-h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-xs font-medium text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:bg-slate-800"
-                      aria-label={`Ajouter une photo, emplacement ${slotIndex + 1}`}
-                    >
-                      <Camera aria-hidden="true" className="h-5 w-5 text-sky-500" />
-                      <span>Ajouter</span>
-                    </button>
-                  );
-                })}
+              <div className="sticky bottom-0 z-10 -mx-6 border-t border-slate-200 bg-white/95 px-6 pb-3 pt-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-1 sm:backdrop-blur-none">
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={isSubmitting || (strongDuplicateCount > 0 && !duplicateDismissed)}
+                  isLoading={isSubmitting}
+                  className="w-full min-h-[44px]"
+                >
+                  Envoyer le signalement (Offline supporté)
+                </Button>
               </div>
-            </section>
-
-            <AiDiagnosticButton
-              photos={photos}
-              onResult={(ai) => {
-                setTitle(ai.title);
-                setDescription(
-                  ai.description + "\n\nActions reco: " + ai.checklist.join(", ")
-                );
-                setCategory(ai.category);
-                setPriority(ai.priority);
-              }}
-            />
-
-            <div className="sticky bottom-0 z-10 -mx-6 border-t border-slate-200 bg-white/95 px-6 pb-3 pt-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-1 sm:backdrop-blur-none">
-              <Button
-                type="submit"
-                size="lg"
-                disabled={isSubmitting || (strongDuplicateCount > 0 && !duplicateDismissed)}
-                isLoading={isSubmitting}
-                className="w-full min-h-[44px]"
-              >
-                Envoyer le signalement (Offline supporté)
-              </Button>
-            </div>
-          </form>
+            </form>
           </BottomSheet>
         )}
 
@@ -1568,7 +1484,7 @@ function IncidentsContent() {
             isResidentRole(currentUser?.role)
               ? hasResolutionProof
               : Boolean(isAssignedTech || canAssign) &&
-                (hasResolutionProof || inc.status === IncidentStatus.IN_PROGRESS);
+              (hasResolutionProof || inc.status === IncidentStatus.IN_PROGRESS);
           const tabs = [
             { id: "overview" as const, label: "Aperçu", icon: ClipboardList },
             { id: "history" as const, label: "Historique", icon: History },
@@ -1644,11 +1560,10 @@ function IncidentsContent() {
                       role="tab"
                       aria-selected={selectedIncidentTab === id}
                       onClick={() => setSelectedIncidentTab(id)}
-                      className={`inline-flex min-h-[48px] shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold transition-colors sm:text-sm ${
-                        selectedIncidentTab === id
-                          ? "border-sky-600 text-sky-700 dark:border-sky-400 dark:text-sky-300"
-                          : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                      }`}
+                      className={`inline-flex min-h-[48px] shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold transition-colors sm:text-sm ${selectedIncidentTab === id
+                        ? "border-sky-600 text-sky-700 dark:border-sky-400 dark:text-sky-300"
+                        : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                        }`}
                     >
                       <Icon className="h-4 w-4" />
                       {label}
@@ -1659,122 +1574,122 @@ function IncidentsContent() {
                 {/* Contenu déroulant */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                   {selectedIncidentTab === "overview" && (
-                  <div className="space-y-4">
-                  <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                    <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Progression</h3>
-                    <IncidentWorkflowTimeline status={inc.status} />
-                  </section>
+                    <div className="space-y-4">
+                      <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Progression</h3>
+                        <IncidentWorkflowTimeline status={inc.status} />
+                      </section>
 
-                  {/* Description complète */}
-                  <div className="space-y-1.5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Description complète
-                    </h3>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                      {inc.description || "Aucune description fournie."}
-                    </p>
-                  </div>
-                  {/* Informations de localisation et signalement */}
-                  <div className="grid grid-cols-1 gap-3 rounded-2xl bg-slate-50 p-3 sm:grid-cols-2 dark:bg-slate-800/40 text-xs">
-                    <div>
-                      <span className="font-semibold text-slate-400">Résidence :</span>{" "}
-                      <strong className="text-slate-800 dark:text-slate-200">{residenceLabel}</strong>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-400">Lot / Appartement :</span>{" "}
-                      <strong className="text-slate-800 dark:text-slate-200">{aptLabel}</strong>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-400">Signalé par :</span>{" "}
-                      <strong className="text-slate-800 dark:text-slate-200">{reporterName}</strong>
-                      {reporterEmail && (
-                        <span className="block text-[11px] text-slate-500">
-                          {reporterEmail}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-400">Signalé le :</span>{" "}
-                      <strong className="text-slate-800 dark:text-slate-200">
-                        {formatFullDate(inc.reportedAt)}
-                      </strong>
-                    </div>
-                    {inc.resolvedAt && (
-                      <div className="sm:col-span-2">
-                        <span className="font-semibold text-slate-400">Résolu le :</span>{" "}
-                        <strong className="text-emerald-600 dark:text-emerald-400">
-                          {formatFullDate(inc.resolvedAt)}
-                        </strong>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Technicien assigné */}
-                  <div className="space-y-1.5 rounded-2xl border border-slate-100 p-3 dark:border-slate-800">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Technicien assigné
-                    </h3>
-                    {techName ? (
-                      <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
-                        <p className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <UserCheck className="h-4 w-4 text-sky-500" />
-                          {techName}
+                      {/* Description complète */}
+                      <div className="space-y-1.5">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Description complète
+                        </h3>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                          {inc.description || "Aucune description fournie."}
                         </p>
-                        <div className="flex flex-wrap gap-3 pt-1">
-                          {techEmail && (
-                            <a
-                              href={`mailto:${techEmail}`}
-                              className="text-sky-600 underline hover:text-sky-700 dark:text-sky-400"
-                            >
-                              {techEmail}
-                            </a>
-                          )}
-                          {techPhone && (
-                            <a
-                              href={`tel:${techPhone}`}
-                              className="text-sky-600 font-semibold underline hover:text-sky-700 dark:text-sky-400"
-                            >
-                              Tél : {techPhone}
-                            </a>
+                      </div>
+                      {/* Informations de localisation et signalement */}
+                      <div className="grid grid-cols-1 gap-3 rounded-2xl bg-slate-50 p-3 sm:grid-cols-2 dark:bg-slate-800/40 text-xs">
+                        <div>
+                          <span className="font-semibold text-slate-400">Résidence :</span>{" "}
+                          <strong className="text-slate-800 dark:text-slate-200">{residenceLabel}</strong>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-400">Lot / Appartement :</span>{" "}
+                          <strong className="text-slate-800 dark:text-slate-200">{aptLabel}</strong>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-400">Signalé par :</span>{" "}
+                          <strong className="text-slate-800 dark:text-slate-200">{reporterName}</strong>
+                          {reporterEmail && (
+                            <span className="block text-[11px] text-slate-500">
+                              {reporterEmail}
+                            </span>
                           )}
                         </div>
+                        <div>
+                          <span className="font-semibold text-slate-400">Signalé le :</span>{" "}
+                          <strong className="text-slate-800 dark:text-slate-200">
+                            {formatFullDate(inc.reportedAt)}
+                          </strong>
+                        </div>
+                        {inc.resolvedAt && (
+                          <div className="sm:col-span-2">
+                            <span className="font-semibold text-slate-400">Résolu le :</span>{" "}
+                            <strong className="text-emerald-600 dark:text-emerald-400">
+                              {formatFullDate(inc.resolvedAt)}
+                            </strong>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                        Aucun technicien assigné pour le moment.
-                      </p>
-                    )}
-                  </div>
 
-                  {/* Photos en grand format */}
-                  {inc.photos && inc.photos.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Photos jointes ({inc.photos.length})
-                      </h3>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {inc.photos.map((photoUrl, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => setFullscreenPhoto(photoUrl)}
-                            className="group relative aspect-video cursor-pointer overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={photoUrl}
-                              alt={`Photo ${idx + 1}`}
-                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium">
-                              Agrandir
+                      {/* Technicien assigné */}
+                      <div className="space-y-1.5 rounded-2xl border border-slate-100 p-3 dark:border-slate-800">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Technicien assigné
+                        </h3>
+                        {techName ? (
+                          <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
+                            <p className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <UserCheck className="h-4 w-4 text-sky-500" />
+                              {techName}
+                            </p>
+                            <div className="flex flex-wrap gap-3 pt-1">
+                              {techEmail && (
+                                <a
+                                  href={`mailto:${techEmail}`}
+                                  className="text-sky-600 underline hover:text-sky-700 dark:text-sky-400"
+                                >
+                                  {techEmail}
+                                </a>
+                              )}
+                              {techPhone && (
+                                <a
+                                  href={`tel:${techPhone}`}
+                                  className="text-sky-600 font-semibold underline hover:text-sky-700 dark:text-sky-400"
+                                >
+                                  Tél : {techPhone}
+                                </a>
+                              )}
                             </div>
                           </div>
-                        ))}
+                        ) : (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                            Aucun technicien assigné pour le moment.
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  )}
 
-                  </div>
+                      {/* Photos en grand format */}
+                      {inc.photos && inc.photos.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            Photos jointes ({inc.photos.length})
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {inc.photos.map((photoUrl, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => setFullscreenPhoto(photoUrl)}
+                                className="group relative aspect-video cursor-pointer overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={photoUrl}
+                                  alt={`Photo ${idx + 1}`}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium">
+                                  Agrandir
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
                   )}
                   {selectedIncidentTab === "history" && <IncidentHistory incidentId={inc._id} />}
                   {selectedIncidentTab === "ai" && canAssign && (
@@ -1861,13 +1776,12 @@ function IncidentsContent() {
 
                 {/* Footer avec boutons d'actions */}
                 <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 p-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
-                  {inc.status !== IncidentStatus.RESOLVED && canAssign && (
+                  {inc.status === IncidentStatus.REPORTED && canAssign && (
                     <Button
                       size="sm"
                       variant="secondary"
                       className="min-h-[44px] gap-1"
                       onClick={() => {
-                        setErrorMessage(null);
                         setAssigningIncident(inc);
                         setSelectedTechId(technicians.length > 0 ? technicians[0]._id : "");
                       }}
