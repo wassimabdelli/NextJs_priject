@@ -47,10 +47,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-[#f4f7fb] text-slate-800 antialiased transition-colors duration-300 selection:bg-blue-600 selection:text-white dark:bg-[#080d1a] dark:text-slate-100">
-      <div className="pointer-events-none fixed -top-32 -left-32 -z-0 h-[34rem] w-[34rem] rounded-full bg-gradient-to-tr from-rose-300/35 via-purple-300/30 to-indigo-300/30 filter blur-3xl dark:from-blue-600/15 dark:via-purple-600/10 dark:to-cyan-600/10" />
-      <div className="pointer-events-none fixed top-1/4 -right-28 -z-0 h-[38rem] w-[38rem] rounded-full bg-gradient-to-br from-indigo-200/40 via-sky-200/35 to-teal-200/25 filter blur-3xl dark:from-indigo-600/15 dark:via-sky-600/10 dark:to-teal-600/10" />
-      <div className="pointer-events-none fixed -bottom-40 left-1/3 -z-0 h-[42rem] w-[42rem] rounded-full bg-gradient-to-tr from-amber-200/30 via-rose-200/25 to-violet-200/30 filter blur-3xl dark:from-violet-600/15 dark:via-rose-600/10 dark:to-amber-600/10" />
+    <div className="relative isolate flex min-h-screen overflow-hidden bg-[#f4f7fb] text-slate-800 antialiased transition-colors duration-300 selection:bg-blue-600 selection:text-white dark:bg-[#080d1a] dark:text-slate-100">
+      <div className="pointer-events-none fixed -top-32 -left-32 -z-10 h-[34rem] w-[34rem] rounded-full bg-gradient-to-tr from-rose-300/35 via-purple-300/30 to-indigo-300/30 filter blur-3xl dark:from-blue-600/15 dark:via-purple-600/10 dark:to-cyan-600/10" />
+      <div className="pointer-events-none fixed top-1/4 -right-28 -z-10 h-[38rem] w-[38rem] rounded-full bg-gradient-to-br from-indigo-200/40 via-sky-200/35 to-teal-200/25 filter blur-3xl dark:from-indigo-600/15 dark:via-sky-600/10 dark:to-teal-600/10" />
+      <div className="pointer-events-none fixed -bottom-40 left-1/3 -z-10 h-[42rem] w-[42rem] rounded-full bg-gradient-to-tr from-amber-200/30 via-rose-200/25 to-violet-200/30 filter blur-3xl dark:from-violet-600/15 dark:via-rose-600/10 dark:to-amber-600/10" />
 
       <div className="hidden md:flex">
         <Sidebar
@@ -63,7 +63,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         />
       </div>
 
-      <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col">
+      <div className="relative flex min-h-screen min-w-0 flex-1 flex-col">
         <TopHeader
           currentUser={store.currentUser}
           residences={store.residences}

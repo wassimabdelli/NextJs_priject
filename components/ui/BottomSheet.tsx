@@ -52,7 +52,7 @@ export function BottomSheet({
       {/* Conteneur : Bottom Sheet sur mobile (< sm/md), Modal centré sur desktop */}
       <div
         className={clsx(
-          "relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-all dark:bg-slate-900 sm:max-w-lg sm:rounded-3xl sm:border sm:border-slate-800",
+          "relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-all dark:bg-slate-900 sm:max-w-lg sm:rounded-3xl sm:border sm:border-slate-800",
           className
         )}
         style={{

@@ -65,7 +65,7 @@
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.25s ease-out both;
+  animation: fadeIn 0.25s ease-out backwards;
 }
 
 .shadow-xs {
