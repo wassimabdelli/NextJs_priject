@@ -51,7 +51,7 @@ export async function runUnpaidChargeReminders(): Promise<number> {
         type: ReminderType.UNPAID_CHARGE,
         title,
         body,
-        dedupeKey: `unpaid:${charge._id}:${dayKey}`,
+        dedupeKey: `unpaid:${charge._id}:${userId}:${dayKey}`,
         meta: { chargeId: String(charge._id), remaining },
       });
       sent += 1;
@@ -112,7 +112,7 @@ export async function runMeetingTomorrowReminders(): Promise<number> {
         type: ReminderType.MEETING_TOMORROW,
         title,
         body,
-        dedupeKey: `meeting:${meeting._id}:${dayKey}`,
+        dedupeKey: `meeting:${meeting._id}:${userId}:${dayKey}`,
         meta: { meetingId: String(meeting._id) },
       });
       sent += 1;

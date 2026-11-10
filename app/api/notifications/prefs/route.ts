@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { HttpError, json, parseBody } from "@/lib/api";
 import { withAuth, type AuthUser } from "@/lib/auth-guard";
+import { getWhatsAppConfigStatus } from "@/lib/notifications/notify";
 import { User } from "@/models/User";
 import { Role } from "@/types/enums";
 
@@ -25,6 +26,7 @@ export const GET = withAuth(
       .select("phone notifyInApp notifyWhatsApp notifyPush pushSubscription")
       .lean();
     if (!doc) throw new HttpError(404, "Utilisateur introuvable");
+    const waStatus = getWhatsAppConfigStatus();
     return json({
       phone: doc.phone || "",
       notifyInApp: doc.notifyInApp !== false,
@@ -32,6 +34,9 @@ export const GET = withAuth(
       notifyPush: !!doc.notifyPush,
       hasPushSubscription: !!doc.pushSubscription?.endpoint,
       vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null,
+      whatsappConfigured: waStatus.configured,
+      whatsappProvider: waStatus.provider,
+      missingWhatsAppEnv: waStatus.missing,
     });
   },
   {

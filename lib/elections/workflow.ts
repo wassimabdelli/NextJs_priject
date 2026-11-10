@@ -3,7 +3,75 @@ import { ElectionVote } from "@/models/ElectionVote";
 import { Announcement } from "@/models/Announcement";
 import { Residence } from "@/models/Residence";
 import { User } from "@/models/User";
-import { ElectionPhase, Role } from "@/types/enums";
+import { notifyUser } from "@/lib/notifications/notify";
+import { ElectionPhase, ReminderType, Role } from "@/types/enums";
+
+interface ElectionNotifyInput {
+  electionId: unknown;
+  residenceId: unknown;
+  title: string;
+  phase: ElectionPhase;
+  summary: string;
+}
+
+/**
+ * Notifie tous les administrateurs actifs (In-App + WhatsApp/Push selon leurs préférences)
+ * au lancement ou lors d'un changement de phase d'une élection.
+ */
+export async function notifyAdminsElectionPhase(
+  input: ElectionNotifyInput
+): Promise<void> {
+  try {
+    const rawResId =
+      typeof input.residenceId === "object" &&
+      input.residenceId !== null &&
+      "_id" in input.residenceId
+        ? (input.residenceId as { _id: unknown })._id
+        : input.residenceId;
+    const populatedName =
+      typeof input.residenceId === "object" &&
+      input.residenceId !== null &&
+      "name" in input.residenceId
+        ? String((input.residenceId as { name?: string }).name || "")
+        : "";
+
+    let residenceName = populatedName;
+    if (!residenceName && rawResId) {
+      const res = await Residence.findById(rawResId).select("name").lean();
+      residenceName = res?.name || "";
+    }
+
+    const admins = await User.find({ role: Role.ADMIN, isActive: true })
+      .select("_id")
+      .lean();
+
+    const phaseTitles: Record<ElectionPhase, string> = {
+      [ElectionPhase.CANDIDACY]: "Nouvelle élection lancée",
+      [ElectionPhase.VOTING]: "Élection : ouverture des votes",
+      [ElectionPhase.COMPLETED]: "Élection terminée : résultats",
+    };
+
+    const notifTitle = phaseTitles[input.phase];
+    const body = `${input.title} (${residenceName || "Résidence"}) — ${input.summary}`;
+
+    for (const admin of admins) {
+      const adminId = String(admin._id);
+      await notifyUser({
+        userId: adminId,
+        type: ReminderType.ELECTION_UPDATE,
+        title: notifTitle,
+        body,
+        dedupeKey: `election:${String(input.electionId)}:phase:${input.phase}:${adminId}`,
+        meta: {
+          electionId: String(input.electionId),
+          phase: input.phase,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[elections] Échec notification admins:", err);
+  }
+}
 
 /**
  * Affecte le gagnant comme syndic de la résidence.
@@ -44,6 +112,8 @@ async function assignElectionWinnerAsSyndic(
 export async function checkAndProgressElection(election: any) {
   const now = new Date();
   let modified = false;
+  let votingSummary: string | null = null;
+  let completedSummary: string | null = null;
 
   // 1. Transition CANDIDACY -> VOTING
   if (
@@ -53,16 +123,17 @@ export async function checkAndProgressElection(election: any) {
     election.phase = ElectionPhase.VOTING;
     modified = true;
 
-    if (!election.announcements?.votingAnnounced) {
-      const candidatesCount = election.candidates?.length || 0;
-      const votingEndStr = new Date(election.votingEndDate).toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    const candidatesCount = election.candidates?.length || 0;
+    const votingEndStr = new Date(election.votingEndDate).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    votingSummary = `Votes ouverts (${candidatesCount} candidat(s)) jusqu'au ${votingEndStr}.`;
 
+    if (!election.announcements?.votingAnnounced) {
       await Announcement.create({
         residence: election.residence,
         author: election.createdBy,
@@ -128,11 +199,14 @@ export async function checkAndProgressElection(election: any) {
       }
     }
 
-    if (!election.announcements?.resultsAnnounced) {
-      const winnerName = election.winner?.name;
-      const count = election.winner?.votesCount ?? 0;
-      const weight = election.winner?.votesWeight ?? 0;
+    const winnerName = election.winner?.name;
+    const count = election.winner?.votesCount ?? 0;
+    const weight = election.winner?.votesWeight ?? 0;
+    completedSummary = winnerName
+      ? `Scrutin clos — Vainqueur : ${winnerName} (${count} vote(s)).`
+      : "Scrutin clos — Aucun vote enregistré.";
 
+    if (!election.announcements?.resultsAnnounced) {
       await Announcement.create({
         residence: election.residence,
         author: election.createdBy,
@@ -153,6 +227,25 @@ export async function checkAndProgressElection(election: any) {
 
   if (modified) {
     await election.save();
+
+    if (votingSummary) {
+      await notifyAdminsElectionPhase({
+        electionId: election._id,
+        residenceId: election.residence,
+        title: election.title,
+        phase: ElectionPhase.VOTING,
+        summary: votingSummary,
+      });
+    }
+    if (completedSummary) {
+      await notifyAdminsElectionPhase({
+        electionId: election._id,
+        residenceId: election.residence,
+        title: election.title,
+        phase: ElectionPhase.COMPLETED,
+        summary: completedSummary,
+      });
+    }
   }
 
   return election;

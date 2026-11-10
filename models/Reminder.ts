@@ -50,6 +50,11 @@ ReminderSchema.index({ user: 1, createdAt: -1 });
 ReminderSchema.index({ status: 1, scheduledFor: 1 });
 ReminderSchema.index({ dedupeKey: 1, channel: 1 }, { unique: true });
 
+// Évite un schéma Mongoose obsolète en mémoire lors du Fast Refresh Next.js
+if (process.env.NODE_ENV !== "production" && mongoose.models.Reminder) {
+  mongoose.deleteModel("Reminder");
+}
+
 export const Reminder =
   (mongoose.models.Reminder as ReminderModel) ||
   model<IReminder, ReminderModel>("Reminder", ReminderSchema);
