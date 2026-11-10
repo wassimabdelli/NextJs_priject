@@ -8,6 +8,8 @@ import { Residence } from "@/models/Residence";
 import { generatePackFromRecording } from "@/lib/ai/meeting-assistant";
 import { Role } from "@/types/enums";
 
+export const maxDuration = 300;
+
 interface RouteParams {
   params: Promise<{ id: string }> | { id: string };
 }
@@ -94,12 +96,19 @@ export const POST = withAuth(
     }
 
     // Archive locale
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "ag-recordings");
-    await mkdir(uploadsDir, { recursive: true });
-    const ext = path.extname(originalName) || ".webm";
-    const filename = `ag-${id}-${Date.now()}${ext}`;
-    await writeFile(path.join(uploadsDir, filename), buffer);
-    const recordingUrl = `/uploads/ag-recordings/${filename}`;
+    let recordingUrl: string | null = null;
+    if (!process.env.VERCEL) {
+      try {
+        const uploadsDir = path.join(process.cwd(), "public", "uploads", "ag-recordings");
+        await mkdir(uploadsDir, { recursive: true });
+        const ext = path.extname(originalName) || ".webm";
+        const filename = `ag-${id}-${Date.now()}${ext}`;
+        await writeFile(path.join(uploadsDir, filename), buffer);
+        recordingUrl = `/uploads/ag-recordings/${filename}`;
+      } catch (e) {
+        console.warn("[recording] archive locale ignorée", e);
+      }
+    }
 
     const residence = await Residence.findById(meeting.residence).select("name").lean();
 
@@ -128,7 +137,7 @@ export const POST = withAuth(
       result.decisions.length
         ? `\n\nDécisions retenues :\n${result.decisions.map((d) => `- ${d}`).join("\n")}`
         : "",
-      `\n\n[Enregistrement source : ${recordingUrl}]`,
+      recordingUrl ? `\n\n[Enregistrement source : ${recordingUrl}]` : "",
     ]
       .join("")
       .trim();

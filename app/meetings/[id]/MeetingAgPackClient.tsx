@@ -154,8 +154,14 @@ export default function MeetingAgPackClient({ id }: { id: string }) {
       );
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      setError("Fichier trop gros (max 100 Mo pour l'upload IA)");
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const maxBytes = isLocal ? 100 * 1024 * 1024 : 4 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setError(
+        isLocal
+          ? "Fichier trop gros (max 100 Mo pour l'upload IA)"
+          : "Fichier trop gros pour la version en ligne (max 4 Mo). Utilise un enregistrement audio seul, plus court."
+      );
       return;
     }
 
@@ -181,7 +187,15 @@ export default function MeetingAgPackClient({ id }: { id: string }) {
 
     xhr.onload = async () => {
       try {
-        const data = JSON.parse(xhr.responseText || "{}");
+        let data: { error?: string; transcript?: string } = {};
+        try {
+          data = JSON.parse(xhr.responseText || "{}");
+        } catch {
+          /* réponse non JSON */
+        }
+        if (xhr.status === 413) {
+          throw new Error("Fichier trop volumineux pour le serveur (max 4 Mo en ligne).");
+        }
         if (xhr.status < 200 || xhr.status >= 300) {
           throw new Error(data.error || "Échec upload / transcription");
         }
