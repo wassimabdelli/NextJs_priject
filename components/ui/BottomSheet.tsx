@@ -28,12 +28,9 @@ export function BottomSheet({
       if (e.key === "Escape") onClose();
     };
 
-    // Bloque le défilement arrière-plan
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
@@ -41,18 +38,17 @@ export function BottomSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       {/* Backdrop sombre avec flou */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
+        className="pointer-events-none fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
         aria-hidden="true"
       />
 
       {/* Conteneur : Bottom Sheet sur mobile (< sm/md), Modal centré sur desktop */}
       <div
         className={clsx(
-          "relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-all dark:bg-slate-900 sm:max-w-lg sm:rounded-3xl sm:border sm:border-slate-800",
+          "pointer-events-auto relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-all dark:bg-slate-900 sm:max-w-lg sm:rounded-3xl sm:border sm:border-slate-800",
           className
         )}
         style={{

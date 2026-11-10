@@ -80,8 +80,8 @@ export function AnnouncementEditor({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
-      <form onSubmit={submit} className="max-h-[95vh] w-full max-w-6xl space-y-4 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:rounded-2xl sm:p-6">
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
+      <form onSubmit={submit} className="pointer-events-auto max-h-[95vh] w-full max-w-6xl space-y-4 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:rounded-2xl sm:p-6">
         <header className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{initial ? "Modifier l'annonce" : "Nouvelle annonce"}</h2>

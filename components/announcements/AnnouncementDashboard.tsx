@@ -511,8 +511,8 @@ export function AnnouncementDashboard() {
 
         {editorOpen && <AnnouncementEditor initial={editing} residences={residences} saving={saving} onClose={() => { setEditorOpen(false); setEditing(null); }} onSubmit={saveAnnouncement} />}
 
-        {selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="announcement-detail-title" className="max-h-[92vh] w-full max-w-3xl space-y-5 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:rounded-2xl sm:p-6">
+        {selected && <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="announcement-detail-title" className="pointer-events-auto max-h-[92vh] w-full max-w-3xl space-y-5 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:rounded-2xl sm:p-6">
             <header className="flex items-start justify-between gap-4">
               <div><div className="mb-2 flex flex-wrap gap-2"><AnnouncementCategoryBadge category={selected.category} /><AnnouncementPriorityBadge priority={selected.priority} /><AnnouncementStatusBadge status={announcementStatus(selected)} /></div><h2 id="announcement-detail-title" className="text-xl font-bold text-slate-900 dark:text-white">{selected.title}</h2><p className="mt-1 text-xs text-slate-500">{typeof selected.residence === "string" ? "" : selected.residence.name} · {new Date(selected.publishedAt).toLocaleString("fr-FR")}</p></div>
               <button type="button" onClick={() => setSelected(null)} aria-label="Fermer le détail" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-5 w-5" /></button>
