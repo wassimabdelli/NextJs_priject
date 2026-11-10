@@ -30,7 +30,9 @@ export const authConfig: NextAuthConfig = {
       // Lors de la connexion initiale, user contient les données renvoyées par authorize()
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: Role }).role;
+        const rawRole = (user as { role?: string }).role;
+        token.role =
+          rawRole === "RESIDENT" || !rawRole ? Role.OWNER : (rawRole as Role);
       }
       return token;
     },
@@ -38,7 +40,9 @@ export const authConfig: NextAuthConfig = {
       // Propagation de l'id et du rôle typé dans l'objet session client/serveur
       if (token && session.user) {
         session.user.id = (token.id as string) ?? (token.sub as string);
-        session.user.role = (token.role as Role) ?? Role.OWNER;
+        const rawRole = token.role as string | undefined;
+        session.user.role =
+          rawRole === "RESIDENT" || !rawRole ? Role.OWNER : (rawRole as Role);
       }
       return session;
     },

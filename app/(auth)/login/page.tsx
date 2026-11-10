@@ -7,17 +7,19 @@ import { signIn } from "next-auth/react";
 import { Building2, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { saveOfflineSession } from "@/lib/offline/db";
+import { ROLE_HOME, isRouteAllowed } from "@/lib/permissions";
+import { Role } from "@/types/enums";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Sécurité anti-open redirect : n'accepte que les chemins relatifs
-  const rawCallbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const callbackUrl =
+  const rawCallbackUrl = searchParams.get("callbackUrl") || "";
+  const requestedCallbackUrl =
     rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
       ? rawCallbackUrl
-      : "/dashboard";
+      : "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,7 +42,6 @@ function LoginForm() {
         email: email.toLowerCase().trim(),
         password,
         redirect: false,
-        callbackUrl,
       });
 
       if (res?.error) {
@@ -49,27 +50,51 @@ function LoginForm() {
         return;
       }
 
-      // Récupération de la session fraîche pour hydrater le stockage Dexie hors-ligne
+      let targetUrl = "/dashboard";
+
+      // Récupération de la session fraîche pour hydrater le stockage Dexie hors-ligne et calculer la route autorisée
       try {
         const sessionRes = await fetch("/api/auth/session");
         if (sessionRes.ok) {
           const sessionData = await sessionRes.json();
+          const rawRole = sessionData?.user?.role as string | undefined;
+          const userRole: Role =
+            rawRole === "RESIDENT" || !rawRole ? Role.OWNER : (rawRole as Role);
+
           if (sessionData?.user?.id) {
             await saveOfflineSession({
               id: sessionData.user.id,
               name: sessionData.user.name || "Utilisateur",
               email: sessionData.user.email || email,
-              role: sessionData.user.role || "OWNER",
+              role: userRole,
               expiresAt: Date.now() + 7 * 24 * 3600 * 1000,
             });
+          }
+
+          const defaultHome = ROLE_HOME[userRole] || "/dashboard";
+          const callbackPathname = requestedCallbackUrl.split("?")[0];
+
+          // Si l'utilisateur est un résident (OWNER/TENANT) ou un autre rôle, on vérifie que callbackUrl lui est autorisée
+          // et n'est pas une route admin protégée (sinon redirection vers son dashboard spécifique)
+          if (
+            requestedCallbackUrl &&
+            callbackPathname !== "/login" &&
+            callbackPathname !== "/register" &&
+            callbackPathname !== "/forbidden" &&
+            isRouteAllowed(callbackPathname, userRole)
+          ) {
+            targetUrl = requestedCallbackUrl;
+          } else {
+            targetUrl = defaultHome;
           }
         }
       } catch (err) {
         console.warn("[Login] Sauvegarde de session hors-ligne différée :", err);
       }
 
-      // Redirection fluide
-      window.location.href = callbackUrl;
+      // Redirection sécurisée vers la route autorisée
+      router.replace(targetUrl);
+      window.location.href = targetUrl;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Une erreur est survenue lors de la connexion.";
       setErrorMessage(msg);
