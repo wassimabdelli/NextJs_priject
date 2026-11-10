@@ -138,7 +138,7 @@ export const NotificationsView: React.FC = () => {
     setSavingPhone(false);
   };
 
-  const handleTestWhatsApp = async () => {
+  const handleTestWhatsApp = async (mode: "text" | "hello_world" = "text") => {
     setTestResult(null);
     setPrefsError(null);
     const trimmed = phone.trim();
@@ -151,7 +151,10 @@ export const NotificationsView: React.FC = () => {
       const res = await fetchWithOffline<TestWhatsAppRes>("/api/notifications/test-whatsapp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(trimmed ? { phone: trimmed } : {}),
+        body: JSON.stringify({
+          ...(trimmed ? { phone: trimmed } : {}),
+          mode,
+        }),
       });
       setTestResult({ ok: true, message: res.message });
     } catch (e) {
@@ -321,7 +324,7 @@ export const NotificationsView: React.FC = () => {
                 <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                   Votre numéro WhatsApp (destinataire des alertes · ex. +216 26 801 850)
                 </span>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                   <input
                     type="tel"
                     value={phone}
@@ -332,7 +335,7 @@ export const NotificationsView: React.FC = () => {
                         void savePrefs({ phone: phone.trim() });
                       }
                     }}
-                    className="w-full sm:flex-1 min-h-[44px] text-base md:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/[0.1] rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono font-semibold"
+                    className="w-full sm:flex-1 min-w-[180px] min-h-[44px] text-base md:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/[0.1] rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono font-semibold"
                   />
                   <button
                     type="button"
@@ -345,7 +348,7 @@ export const NotificationsView: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleTestWhatsApp()}
+                    onClick={() => void handleTestWhatsApp("text")}
                     disabled={testingWa}
                     className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
@@ -355,6 +358,16 @@ export const NotificationsView: React.FC = () => {
                       <MessageSquare className="w-3.5 h-3.5" />
                     )}
                     <span>Tester WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleTestWhatsApp("hello_world")}
+                    disabled={testingWa}
+                    title="Envoie le modèle Meta hello_world pour lancer ou réouvrir la discussion 24h"
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Débloquer 24h</span>
                   </button>
                 </div>
 
