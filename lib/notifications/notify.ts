@@ -147,25 +147,87 @@ export function getWhatsAppConfigStatus(): {
   return { configured: false, provider: "none", missing };
 }
 
-/**
- * Envoi via Meta WhatsApp Cloud API (gratuit, sans carte bancaire).
- * Docs : https://developers.facebook.com/docs/whatsapp/cloud-api/messages/text-messages
- */
-export async function sendWhatsApp(
-  phone: string,
-  text: string
-): Promise<{ chatId: string; provider: Exclude<WhatsAppProvider, "none"> }> {
-  const to = formatWhatsAppPhone(phone);
-  const { configured, missing } = getWhatsAppConfigStatus();
+export type WhatsAppSendMode = "template" | "text";
 
-  if (!configured) {
-    console.info(`[whatsapp:dev] (${missing.join(", ")} manquant) → ${to}: ${text.slice(0, 120)}`);
-    throw new Error(`Configuration WhatsApp incomplète (${missing.join(", ")} manquant dans .env.local).`);
+interface CachedTemplate {
+  name: string;
+  language: string;
+  expiresAt: number;
+}
+
+const DYNAMIC_TEMPLATE_CANDIDATES = [
+  { name: "syndicpro_alerte", language: "fr" },
+  { name: "syndicpro_alert_v1", language: "en_US" },
+] as const;
+
+let cachedDynamicTemplate: CachedTemplate | null | undefined;
+let dynamicTemplateCheckedUntil = 0;
+
+/**
+ * Vérifie (avec cache 5 min) si un modèle dynamique SyndicPro est approuvé sur la WABA Meta.
+ * Permet d'envoyer des notifications personnalisées sans limite de fenêtre 24h dès approbation.
+ */
+async function resolveApprovedDynamicTemplate(
+  token: string,
+  wabaId: string
+): Promise<{ name: string; language: string } | null> {
+  const now = Date.now();
+  if (now < dynamicTemplateCheckedUntil && cachedDynamicTemplate !== undefined) {
+    return cachedDynamicTemplate;
   }
 
-  const token = process.env.META_WA_TOKEN!.trim();
-  const phoneId = process.env.META_WA_PHONE_ID!.trim();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${encodeURIComponent(wabaId)}/message_templates?fields=name,status,language`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000),
+      }
+    );
+    if (!res.ok) {
+      dynamicTemplateCheckedUntil = now + 5 * 60_000;
+      cachedDynamicTemplate = null;
+      return null;
+    }
 
+    const data = (await res.json()) as {
+      data?: Array<{ name?: string; status?: string; language?: string }>;
+    };
+    const approved = DYNAMIC_TEMPLATE_CANDIDATES.find((candidate) =>
+      data.data?.some(
+        (t) =>
+          t.name === candidate.name &&
+          t.language === candidate.language &&
+          t.status === "APPROVED"
+      )
+    );
+
+    cachedDynamicTemplate = approved
+      ? { name: approved.name, language: approved.language, expiresAt: now + 5 * 60_000 }
+      : null;
+    dynamicTemplateCheckedUntil = now + 5 * 60_000;
+    return cachedDynamicTemplate;
+  } catch {
+    dynamicTemplateCheckedUntil = now + 60_000;
+    return cachedDynamicTemplate ?? null;
+  }
+}
+
+/** Nettoie un paramètre de modèle Meta (pas de sauts de ligne ni d'espaces multiples). */
+function sanitizeTemplateParam(text: string): string {
+  return text
+    .replace(/[\r\n\t]+/g, " · ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .slice(0, 950);
+}
+
+/** Appelle l'endpoint Graph API /messages et renvoie l'identifiant wamid. */
+async function postMetaMessage(
+  token: string,
+  phoneId: string,
+  body: Record<string, unknown>
+): Promise<string | undefined> {
   let res: Response;
   try {
     res = await fetch(
@@ -176,12 +238,7 @@ export async function sendWhatsApp(
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "text",
-          text: { body: text.slice(0, 4096) },
-        }),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(15000),
       }
     );
@@ -196,7 +253,76 @@ export async function sendWhatsApp(
     throw new Error(`Meta WhatsApp API ${res.status}: ${detail}`);
   }
 
-  return { chatId: to, provider: "meta" };
+  return payload?.messages?.[0]?.id as string | undefined;
+}
+
+/**
+ * Envoi via Meta WhatsApp Cloud API (gratuit, sans carte bancaire).
+ * Utilise automatiquement un modèle approuvé (sinon message texte 24h), ou hello_world si demandé.
+ */
+export async function sendWhatsApp(
+  phone: string,
+  text: string,
+  options?: { forceHelloWorld?: boolean }
+): Promise<{
+  chatId: string;
+  provider: Exclude<WhatsAppProvider, "none">;
+  mode: WhatsAppSendMode;
+  messageId?: string;
+}> {
+  const to = formatWhatsAppPhone(phone);
+  const { configured, missing } = getWhatsAppConfigStatus();
+
+  if (!configured) {
+    console.info(`[whatsapp:dev] (${missing.join(", ")} manquant) → ${to}: ${text.slice(0, 120)}`);
+    throw new Error(`Configuration WhatsApp incomplète (${missing.join(", ")} manquant dans .env.local).`);
+  }
+
+  const token = process.env.META_WA_TOKEN!.trim();
+  const phoneId = process.env.META_WA_PHONE_ID!.trim();
+
+  if (options?.forceHelloWorld) {
+    const messageId = await postMetaMessage(token, phoneId, {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: { name: "hello_world", language: { code: "en_US" } },
+    });
+    return { chatId: to, provider: "meta", mode: "template", messageId };
+  }
+
+  const wabaId = process.env.META_WA_WABA_ID?.trim();
+  const approvedTemplate = wabaId
+    ? await resolveApprovedDynamicTemplate(token, wabaId)
+    : null;
+
+  if (approvedTemplate) {
+    const messageId = await postMetaMessage(token, phoneId, {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: approvedTemplate.name,
+        language: { code: approvedTemplate.language },
+        components: [
+          {
+            type: "body",
+            parameters: [{ type: "text", text: sanitizeTemplateParam(text) }],
+          },
+        ],
+      },
+    });
+    return { chatId: to, provider: "meta", mode: "template", messageId };
+  }
+
+  const messageId = await postMetaMessage(token, phoneId, {
+    messaging_product: "whatsapp",
+    to,
+    type: "text",
+    text: { body: text.slice(0, 4096) },
+  });
+
+  return { chatId: to, provider: "meta", mode: "text", messageId };
 }
 
 /**

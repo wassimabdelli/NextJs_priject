@@ -12,6 +12,7 @@ import { Role } from "@/types/enums";
 
 const testWhatsAppSchema = z.object({
   phone: z.string().trim().min(8, "Numéro trop court (min. 8 caractères)").max(20).optional(),
+  mode: z.enum(["text", "hello_world"]).optional(),
 });
 
 /**
@@ -57,13 +58,21 @@ export const POST = withAuth(
     const text = `SyndicPro · Test WhatsApp (${provider.toUpperCase()}) réussi pour ${dbUser.name || user.name || "votre compte"} (${timeLabel}).`;
 
     try {
-      const result = await sendWhatsApp(targetPhone, text);
+      const forceHelloWorld = data.mode === "hello_world";
+      const result = await sendWhatsApp(targetPhone, text, { forceHelloWorld });
+      const message = forceHelloWorld
+        ? `Modèle « hello_world » envoyé vers ${result.chatId}. Répondez « ok » sur WhatsApp pour ouvrir la fenêtre 24h.`
+        : result.mode === "template"
+          ? `Notification WhatsApp envoyée via modèle approuvé vers ${result.chatId}.`
+          : `Requête WhatsApp acceptée vers ${result.chatId} (si rien n'apparaît, cliquez « Débloquer 24h » puis répondez « ok » sur WhatsApp).`;
       return json(
         {
           ok: true,
           chatId: result.chatId,
           provider: result.provider,
-          message: `Message WhatsApp de test envoyé vers ${result.chatId} via ${result.provider.toUpperCase()}.`,
+          mode: result.mode,
+          messageId: result.messageId,
+          message,
         },
         200
       );
