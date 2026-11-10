@@ -207,7 +207,8 @@ function IncidentsContent() {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const [collapsedIncidentGroups, setCollapsedIncidentGroups] = useState<Record<string, boolean>>({});
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const submitLock = useRef(false);
   const clientIdRef = useRef<string | null>(null);
 
@@ -356,6 +357,7 @@ function IncidentsContent() {
     if (!files || files.length === 0) return;
 
     const file = files[0];
+    e.currentTarget.value = "";
     const reader = new FileReader();
 
     reader.onload = (event) => {
@@ -1366,50 +1368,62 @@ function IncidentsContent() {
                 <input
                   type="file"
                   accept="image/*"
-                  ref={fileInputRef}
+                  capture="environment"
+                  ref={cameraInputRef}
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={galleryInputRef}
                   onChange={handlePhotoUpload}
                   className="hidden"
                 />
 
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={photos.length >= 3}
+                    className="min-h-11 flex-1"
+                  >
+                    <Camera aria-hidden="true" className="mr-2 h-4 w-4" />
+                    Prendre une photo
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    disabled={photos.length >= 3}
+                    variant="secondary"
+                    className="min-h-11 flex-1"
+                  >
+                    Choisir dans la galerie
+                  </Button>
+                </div>
+
                 <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: 3 }, (_, slotIndex) => {
-                    const photo = photos[slotIndex];
-                    if (photo) {
-                      return (
-                        <div
-                          key={slotIndex}
-                          className="relative aspect-square min-h-20 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={photo} alt={`Photo du problème ${slotIndex + 1}`} className="h-full w-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPhotos((previous) => previous.filter((_, index) => index !== slotIndex));
-                              setAiFiles((previous) => previous.filter((_, index) => index !== slotIndex));
-                              setAcceptedTriage(null);
-                            }}
-                            className="absolute right-1 top-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-900/80 text-white hover:bg-rose-600"
-                            aria-label={`Supprimer la photo ${slotIndex + 1}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      );
-                    }
-                    return (
+                  {photos.map((photo, slotIndex) => (
+                    <div
+                      key={slotIndex}
+                      className="relative aspect-square min-h-20 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photo} alt={`Photo du problème ${slotIndex + 1}`} className="h-full w-full object-cover" />
                       <button
-                        key={slotIndex}
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex aspect-square min-h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-xs font-medium text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:bg-slate-800"
-                        aria-label={`Ajouter une photo, emplacement ${slotIndex + 1}`}
+                        onClick={() => {
+                          setPhotos((previous) => previous.filter((_, index) => index !== slotIndex));
+                          setAiFiles((previous) => previous.filter((_, index) => index !== slotIndex));
+                          setAcceptedTriage(null);
+                        }}
+                        className="absolute right-1 top-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-900/80 text-white hover:bg-rose-600"
+                        aria-label={`Supprimer la photo ${slotIndex + 1}`}
                       >
-                        <Camera aria-hidden="true" className="h-5 w-5 text-sky-500" />
-                        <span>Ajouter</span>
+                        <X className="h-4 w-4" />
                       </button>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </section>
 
