@@ -48,6 +48,19 @@ export const meetingCrudRoutes = createCrudRoutes({
     }
   },
 
+  injectOnCreate: async (_user, body) => {
+    // Découpe l'ordre du jour multi-lignes en éléments exploitables par le pack AG
+    const rawAgenda = typeof body.agenda === "string" ? body.agenda : "";
+    const agendaItems = rawAgenda
+      .split(/\r?\n+/)
+      .map((line) => line.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, "").trim())
+      .filter(Boolean);
+
+    return {
+      agendaItems,
+    };
+  },
+
   beforeDelete: async (id) => {
     const resolutionCount = await Resolution.countDocuments({ meeting: id });
     if (resolutionCount > 0) {

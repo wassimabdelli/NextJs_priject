@@ -11,8 +11,13 @@ import {
   Sparkles,
   Download,
   Radio,
+  Plus,
+  X,
+  Loader2,
 } from "lucide-react";
 import { fetchWithOffline } from "@/lib/offline/apiClient";
+import { useResidence } from "@/hooks/useResidence";
+import { MeetingStatus, Role } from "@/types/enums";
 
 type AptRow = {
   _id: string;
@@ -73,10 +78,37 @@ type QuorumPayload = {
   apartments?: AptRow[];
 };
 
+const MEETING_STATUS_UI: Record<string, { label: string; badgeClass: string }> = {
+  [MeetingStatus.PLANNED]: {
+    label: "Planifiée",
+    badgeClass: "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  },
+  [MeetingStatus.OPEN]: {
+    label: "En cours",
+    badgeClass: "border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  },
+  [MeetingStatus.CLOSED]: {
+    label: "Clôturée",
+    badgeClass: "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  },
+};
+
+/** Renvoie demain à 18h00 au format local YYYY-MM-DDTHH:mm pour l'input datetime-local. */
+function defaultMeetingDateTime(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(18, 0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Assemblées : UI redesign exacte + APIs meetings / quorum / AI pack. */
 export const MeetingsView: React.FC = () => {
+  const { residences, selectedId: activeResidenceId } = useResidence();
+
   const [meetings, setMeetings] = React.useState<MeetingRow[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [sessionRole, setSessionRole] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -92,13 +124,31 @@ export const MeetingsView: React.FC = () => {
   const [aiGenerating, setAiGenerating] = React.useState(false);
   const [showPdfAlert, setShowPdfAlert] = React.useState(false);
 
+  // Modal de création d'une AG (ADMIN / SYNDIC)
+  const [showCreateModal, setShowCreateModal] = React.useState(false);
+  const [createResidenceId, setCreateResidenceId] = React.useState("");
+  const [createTitle, setCreateTitle] = React.useState("");
+  const [createDate, setCreateDate] = React.useState(defaultMeetingDateTime);
+  const [createLocation, setCreateLocation] = React.useState("");
+  const [createStatus, setCreateStatus] = React.useState<MeetingStatus>(MeetingStatus.PLANNED);
+  const [createAgenda, setCreateAgenda] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
+  const [createError, setCreateError] = React.useState<string | null>(null);
+
   const loadList = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchWithOffline<{ data: MeetingRow[] }>("/api/meetings?limit=50");
-      const list = res.data || [];
-      setMeetings(list);
+      const [res, sess] = await Promise.all([
+        fetchWithOffline<{ data: MeetingRow[] }>("/api/meetings?limit=50"),
+        fetch("/api/auth/session")
+          .then((r) => r.json())
+          .catch(() => null),
+      ]);
+      setMeetings(res.data || []);
+      if (sess?.user?.role) {
+        setSessionRole(String(sess.user.role));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur chargement AG");
     } finally {
@@ -109,6 +159,65 @@ export const MeetingsView: React.FC = () => {
   React.useEffect(() => {
     loadList();
   }, [loadList]);
+
+  const canCreate = sessionRole === Role.ADMIN || sessionRole === Role.SYNDIC;
+
+  const openCreateModal = () => {
+    setCreateError(null);
+    setCreateResidenceId((prev) => prev || activeResidenceId || residences[0]?._id || "");
+    setCreateDate(defaultMeetingDateTime());
+    setShowCreateModal(true);
+  };
+
+  const handleCreateMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError(null);
+
+    const targetResidence = createResidenceId || activeResidenceId || residences[0]?._id || "";
+    if (!targetResidence) {
+      setCreateError("Veuillez sélectionner une résidence.");
+      return;
+    }
+    const cleanTitle = createTitle.trim();
+    if (cleanTitle.length < 3) {
+      setCreateError("L'intitulé doit contenir au moins 3 caractères.");
+      return;
+    }
+    const parsedDate = new Date(createDate);
+    if (!createDate || Number.isNaN(parsedDate.getTime())) {
+      setCreateError("Veuillez saisir une date valide.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await fetchWithOffline("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          residence: targetResidence,
+          title: cleanTitle,
+          date: parsedDate.toISOString(),
+          location: createLocation.trim() || undefined,
+          agenda: createAgenda.trim() || undefined,
+          status: createStatus,
+        }),
+      });
+      setShowCreateModal(false);
+      setCreateTitle("");
+      setCreateLocation("");
+      setCreateAgenda("");
+      setCreateStatus(MeetingStatus.PLANNED);
+      setMessage(`Assemblée « ${cleanTitle} » créée avec succès.`);
+      await loadList();
+    } catch (err) {
+      setCreateError(
+        err instanceof Error ? err.message : "Impossible de créer l'assemblée générale."
+      );
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const openSession = async (id: string) => {
     setSelectedId(id);
@@ -514,6 +623,16 @@ export const MeetingsView: React.FC = () => {
                 Planification des AG, pack IA, quorum et procès-verbaux
               </p>
             </div>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Créer une AG</span>
+              </button>
+            )}
           </div>
 
           <div className="overflow-hidden rounded-3xl glass-card">
@@ -533,47 +652,214 @@ export const MeetingsView: React.FC = () => {
                   {meetings.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                        Aucune assemblée pour le moment.
+                        <p>Aucune assemblée pour le moment.</p>
+                        {canCreate && (
+                          <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-blue-600/10 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-600 hover:text-white dark:text-blue-400 transition-colors"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>Planifier la première AG</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    meetings.map((m) => (
-                      <tr
-                        key={m._id}
-                        className="transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.02]"
-                      >
-                        <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white">
-                          {m.title}
-                        </td>
-                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300">
-                          {residenceName(m)}
-                        </td>
-                        <td className="px-4 py-3.5 font-mono text-slate-500 dark:text-slate-400">
-                          {m.date ? new Date(m.date).toLocaleDateString("fr-FR") : "—"}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-block rounded-full border border-blue-500/30 bg-blue-500/15 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                            {m.status || "Planifiée"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400">
-                          {m.location || "—"}
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openSession(m._id)}
-                            className="rounded-xl border border-blue-500/25 bg-blue-600/10 px-3 py-1.5 text-xs font-bold text-blue-600 shadow-xs transition-all hover:bg-blue-600 hover:text-white dark:text-blue-400"
-                          >
-                            Ouvrir la session
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    meetings.map((m) => {
+                      const statusInfo =
+                        MEETING_STATUS_UI[m.status || ""] || {
+                          label: m.status || "Planifiée",
+                          badgeClass:
+                            "border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-300",
+                        };
+                      return (
+                        <tr
+                          key={m._id}
+                          className="transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.02]"
+                        >
+                          <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white">
+                            {m.title}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300">
+                            {residenceName(m)}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-slate-500 dark:text-slate-400">
+                            {m.date ? new Date(m.date).toLocaleDateString("fr-FR") : "—"}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span
+                              className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusInfo.badgeClass}`}
+                            >
+                              {statusInfo.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400">
+                            {m.location || "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => openSession(m._id)}
+                              className="min-h-[44px] rounded-xl border border-blue-500/25 bg-blue-600/10 px-3 py-1.5 text-xs font-bold text-blue-600 shadow-xs transition-all hover:bg-blue-600 hover:text-white dark:text-blue-400"
+                            >
+                              Ouvrir la session
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-ag-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-fadeIn dark:bg-black/60"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="w-full max-w-lg glass-card rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 dark:border-white/[0.08]">
+              <h3 id="create-ag-title" className="text-base font-bold text-slate-900 dark:text-white">
+                Créer une Assemblée Générale
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMeeting} className="mt-4 space-y-4 text-xs">
+              {createError && (
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-800 dark:text-rose-200"
+                >
+                  {createError}
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block font-semibold text-slate-600 dark:text-slate-300">
+                  Résidence *
+                </label>
+                <select
+                  required
+                  value={createResidenceId}
+                  onChange={(e) => setCreateResidenceId(e.target.value)}
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-base md:text-xs text-slate-900 dark:border-white/[0.1] dark:bg-slate-800 dark:text-white"
+                >
+                  {residences.length === 0 ? (
+                    <option value="">Aucune résidence disponible</option>
+                  ) : (
+                    residences.map((r) => (
+                      <option key={r._id} value={r._id}>
+                        {r.name} ({r.city})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block font-semibold text-slate-600 dark:text-slate-300">
+                  Intitulé de l’AG *
+                </label>
+                <input
+                  required
+                  minLength={3}
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  placeholder="Ex : Assemblée Générale Ordinaire 2026"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-base md:text-xs text-slate-900 dark:border-white/[0.1] dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block font-semibold text-slate-600 dark:text-slate-300">
+                    Date & heure *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={createDate}
+                    onChange={(e) => setCreateDate(e.target.value)}
+                    className="min-h-[44px] w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-base md:text-xs text-slate-900 dark:border-white/[0.1] dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block font-semibold text-slate-600 dark:text-slate-300">
+                    Statut initial
+                  </label>
+                  <select
+                    value={createStatus}
+                    onChange={(e) => setCreateStatus(e.target.value as MeetingStatus)}
+                    className="min-h-[44px] w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-base md:text-xs text-slate-900 dark:border-white/[0.1] dark:bg-slate-800 dark:text-white"
+                  >
+                    <option value={MeetingStatus.PLANNED}>Planifiée</option>
+                    <option value={MeetingStatus.OPEN}>En cours (ouverte)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block font-semibold text-slate-600 dark:text-slate-300">
+                  Lieu / Visioconférence
+                </label>
+                <input
+                  value={createLocation}
+                  onChange={(e) => setCreateLocation(e.target.value)}
+                  placeholder="Ex : Hall d'entrée & Visioconférence"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-base md:text-xs text-slate-900 dark:border-white/[0.1] dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-semibold text-slate-600 dark:text-slate-300">
+                  Ordre du jour (un point par ligne)
+                </label>
+                <textarea
+                  rows={4}
+                  value={createAgenda}
+                  onChange={(e) => setCreateAgenda(e.target.value)}
+                  placeholder={"1. Approbation des comptes 2025\n2. Budget prévisionnel 2026\n3. Travaux des parties communes"}
+                  className="w-full rounded-2xl border border-slate-200/80 bg-slate-50 p-3 text-base md:text-xs text-slate-900 dark:border-white/[0.1] dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="min-h-[44px] rounded-xl bg-slate-100 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/[0.05] dark:text-slate-300"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating || residences.length === 0}
+                  className="min-h-[44px] inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 font-bold text-white shadow-md disabled:opacity-50"
+                >
+                  {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>{creating ? "Création…" : "Créer l’AG"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
